@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { tr, language } from './utils/i18n'
+import { computed, onMounted, ref, watch } from 'vue'
 import ImageViewer from './components/ImageViewer.vue'
 import type { ImageViewerNavigation } from '../../shared/ipc'
 import { applyPerformanceProfile } from './utils/performance-profile'
@@ -15,6 +16,7 @@ const navigation = ref<ImageViewerNavigation | null>(null)
 const navigating = ref(false)
 const navigationError = ref('')
 const runtimeReady = ref(false)
+watch(language, () => { document.title = navigation.value?.name.trim().slice(0, 120) || params.value.get('name') || tr('图片') })
 
 onMounted(async () => {
   void loadNavigation(transferId.value)
@@ -40,7 +42,7 @@ async function loadNavigation(id: string): Promise<void> {
     }
     navigation.value = result
     transferId.value = id
-    document.title = result.name.trim().slice(0, 120) || '图片'
+    document.title = result.name.trim().slice(0, 120) || tr('图片')
   } catch {
     navigationError.value = '图片切换失败，请重试'
   } finally {
@@ -66,13 +68,13 @@ function closeViewer(): void {
     :has-previous="Boolean(navigation?.previous)"
     :has-next="Boolean(navigation?.next)"
     :navigating="navigating"
-    :navigation-error="navigationError"
+    :navigation-error="tr(navigationError)"
     @navigate="navigate"
     @retry-navigation="loadNavigation(transferId)"
     @close="closeViewer"
   />
   <main v-else-if="!transferId" class="missing">
-    <span>图片不可用</span>
+    <span>{{ tr('图片不可用') }}</span>
   </main>
 </template>
 

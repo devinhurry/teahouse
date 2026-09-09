@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { tr, language } from '../utils/i18n'
 import { computed, ref } from 'vue'
 import type { PeerView } from '../../../shared/ipc'
 import { usePeersStore } from '../stores/peers'
@@ -25,7 +26,7 @@ const rows = computed<Row[]>(() => {
   // 三级嵌套分组：Map<公司, Map<部门, Map<团队, peers>>>，空串键=成员直挂上一级
   const tree = new Map<string, Map<string, Map<string, PeerView[]>>>()
   for (const peer of peersStore.peers) {
-    const company = peer.company || '未分组'
+    const company = peer.company || ''
     const dept = peer.company ? peer.dept : '' // 没公司的直接归未分组扁平挂
     const team = dept ? peer.team : ''
     const level1 = tree.get(company) ?? new Map()
@@ -52,17 +53,17 @@ const rows = computed<Row[]>(() => {
   }
 
   const companies = [...tree.keys()].sort((a, b) =>
-    a === '未分组' ? 1 : b === '未分组' ? -1 : a.localeCompare(b, 'zh-Hans-CN')
+    a === '' ? 1 : b === '' ? -1 : a.localeCompare(b, language.value)
   )
   for (const company of companies) {
     const level1 = tree.get(company)!
     const companyKey = `c:${company}`
     const all = flatten(level1)
     const s1 = stats(all)
-    out.push({ kind: 'group', key: companyKey, level: 0, label: company, ...s1 })
+    out.push({ kind: 'group', key: companyKey, level: 0, label: company || tr('未分组'), ...s1 })
     if (collapsed.value.has(companyKey)) continue
 
-    const depts = [...level1.keys()].sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'))
+    const depts = [...level1.keys()].sort((a, b) => a.localeCompare(b, language.value))
     for (const dept of depts) {
       const level2 = level1.get(dept)!
       const deptKey = `${companyKey}/d:${dept}`
@@ -71,7 +72,7 @@ const rows = computed<Row[]>(() => {
         out.push({ kind: 'group', key: deptKey, level: 1, label: dept, ...s2 })
         if (collapsed.value.has(deptKey)) continue
       }
-      const teams = [...level2.keys()].sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'))
+      const teams = [...level2.keys()].sort((a, b) => a.localeCompare(b, language.value))
       for (const team of teams) {
         const peers = level2.get(team)!
         const teamKey = `${deptKey}/t:${team}`
@@ -120,10 +121,9 @@ function displayName(peer: PeerView): string {
 
 <template>
   <div class="pane">
-    <div class="list-head">
-      网内节点 {{ peersStore.peers.length }} · 在线 {{ peersStore.onlineCount }}
+    <div class="list-head">{{ tr('网内节点 {0} · 在线 {1}', { 0: peersStore.peers.length, 1: peersStore.onlineCount }) }}
     </div>
-    <div v-if="peersStore.peers.length === 0" class="placeholder">正在发现同网段节点…</div>
+    <div v-if="peersStore.peers.length === 0" class="placeholder">{{ tr('正在发现同网段节点…') }}</div>
     <ul v-else class="tree">
       <li v-for="row in rows" :key="row.key">
         <button
@@ -134,7 +134,7 @@ function displayName(peer: PeerView): string {
           @click="onRowClick(row)"
           @dblclick="onRowDoubleClick(row)"
           :aria-expanded="row.kind === 'group' ? !collapsed.has(row.key) : undefined"
-          :aria-label="row.peer ? `${displayName(row.peer)}，${row.peer.online ? '在线' : '离线'}，${row.peer.ip}` : undefined"
+          :aria-label="row.peer ? `${displayName(row.peer)}，${row.peer.online ? tr('在线') : tr('离线')}，${row.peer.ip}` : undefined"
         >
           <template v-if="row.kind === 'group'">
             <span class="arrow" aria-hidden="true">{{ collapsed.has(row.key) ? '▸' : '▾' }}</span>

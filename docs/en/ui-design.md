@@ -267,3 +267,7 @@ Circular avatars, local line icons, file-type artwork, tray graphics, and brand 
 - **2026-09-06, v1.88, decision #305:** fix selection-box alignment and cross-line gesture cursor flicker. Version **0.56.0 → 0.56.1**.
 
 - **2026-09-07, decision #306, v0.56.2:** built-in emoji retain transparent Unicode text beneath local SVGs for native selection/copy without extra line breaks; whole-message copy retains original text. The Win7 editor copies/cuts its existing logical draft selection. Linux text inputs use native insertText only for explicit NumLock-on Numpad digits or matching navigation keys, without modifiers or composition; consume events only on successful insertion. Readonly/disabled fields, NumLock-off navigation, Windows and macOS keep native behavior. No protocol, schema, IPC or dependency changes. UOS native event-chain verification remains a target-platform check.
+
+## Decision #307: Language selection
+
+General settings and onboarding expose “语言 / Language” with “简体中文” and “English”. Changes apply to open windows without losing input. Localize Naive UI, accessibility labels, prompts, tray and notifications; check long English labels at minimum sizes. User content stays verbatim. Native operating-system dialogs and installer chrome follow their own language settings.

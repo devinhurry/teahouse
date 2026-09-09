@@ -1,3 +1,4 @@
+import { tr } from '../../i18n'
 import { deflateSync } from 'node:zlib'
 import { TRAY_ICON_COLOR_RGBA_BASE64 } from './tray-icon'
 
@@ -30,7 +31,7 @@ export function unreadBadgeText(count: number): string {
 }
 
 export function trayUnreadToolTip(count: number): string {
-  return count > 0 ? `茶话间（${unreadBadgeText(count)} 条未读）` : '茶话间'
+  return count > 0 ? tr('茶话间（{0} 条未读）', { 0: unreadBadgeText(count) }) : tr('茶话间')
 }
 
 export function createUnreadTrayIconDataURL(count: number): string {

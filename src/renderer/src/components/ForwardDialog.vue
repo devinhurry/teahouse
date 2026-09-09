@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { tr } from '../utils/i18n'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import type { ForwardTarget, MessageView } from '../../../shared/ipc'
 import { usePeersStore } from '../stores/peers'
@@ -25,9 +26,9 @@ const forwardGroups = computed(() => (allowGroup.value ? groups.value : []))
 const canSend = computed(() => picked.value.size > 0 && !sending.value)
 const summary = computed(() => {
   if (props.msg.kind === 'text') return props.msg.text.slice(0, 50)
-  if (props.msg.kind === 'image') return '[图片]'
-  if (props.msg.kind === 'sticker') return '[表情]'
-  return props.msg.fileRef ? `[文件] ${props.msg.fileRef.name}` : '[文件]'
+  if (props.msg.kind === 'image') return tr('[图片]')
+  if (props.msg.kind === 'sticker') return tr('[表情]')
+  return props.msg.fileRef ? tr('[文件] {0}', { 0: props.msg.fileRef.name }) : tr('[文件]')
 })
 
 function toggle(key: string): void {
@@ -52,7 +53,7 @@ async function forward(): Promise<void> {
   sending.value = true
   const res = await chatStore.forward(props.msg.id, targets())
   sending.value = false
-  result.value = `已转发 ${res.ok}/${res.total}`
+  result.value = tr('已转发 {0}/{1}', { 0: res.ok, 1: res.total })
 }
 
 function onWindowKeydown(event: KeyboardEvent): void {
@@ -85,7 +86,7 @@ onBeforeUnmount(() => {
         tabindex="-1"
         @mousedown.stop
       >
-        <h3 id="forward-dialog-title">转发</h3>
+        <h3 id="forward-dialog-title">{{ tr('转发') }}</h3>
         <div class="summary">{{ summary }}</div>
         <div class="pick-list">
           <label v-for="p in peersStore.peers" :key="p.nodeId" class="pick">
@@ -96,7 +97,7 @@ onBeforeUnmount(() => {
             />
             <span class="dot" :class="p.online ? 'on' : 'off'"></span>
             <span class="nm">{{ p.remark || p.nick }}</span>
-            <em v-if="!p.online" class="off-tag">离线</em>
+            <em v-if="!p.online" class="off-tag">{{ tr('离线') }}</em>
           </label>
           <label v-for="g in forwardGroups" :key="g.groupId" class="pick">
             <input
@@ -110,16 +111,14 @@ onBeforeUnmount(() => {
           <p
             v-if="peersStore.peers.length === 0 && (!allowGroup || groups.length === 0)"
             class="empty"
-          >
-            没有可选目标
-          </p>
+          >{{ tr('没有可选目标') }}</p>
         </div>
         <div class="foot">
-          <span class="count">已选 {{ picked.size }} 个目标</span>
+          <span class="count">{{ tr('已选 {0} 个目标', { 0: picked.size }) }}</span>
           <span class="result">{{ result }}</span>
-          <button class="ghost" @click="emit('close')">取消</button>
+          <button class="ghost" @click="emit('close')">{{ tr('取消') }}</button>
           <button class="primary" :disabled="!canSend" @click="forward">
-            {{ sending ? '转发中' : '转发' }}
+            {{ sending ? tr('转发中') : tr('转发') }}
           </button>
         </div>
       </section>

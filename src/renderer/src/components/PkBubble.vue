@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import { pkResultText } from '../utils/message-text'
+import { tr } from '../utils/i18n'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import type { MessageView, PkRefView } from '../../../shared/ipc'
-import { pkLabel, pkResultText, type PkGame, type PkRpsResult } from '../../../shared/pk'
+import { pkLabel, type PkGame, type PkRpsResult } from '../../../shared/pk'
 import { emojiToTwemojiCode, twemojiUrl } from '../utils/twemoji-assets'
 import PantryIcon from './PantryIcon.vue'
 
@@ -19,9 +21,9 @@ const finalRef = computed(() => props.msg.pkRef ?? null)
 const reduceMotion =
   typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 const game = computed(() => finalRef.value?.game ?? 'dice')
-const label = computed(() => pkLabel(game.value))
+const label = computed(() => tr(pkLabel(game.value)))
 const chipIcon = computed(() => (game.value === 'dice' ? 'pk-dice' : 'pk-rps'))
-const actionText = computed(() => (game.value === 'dice' ? '掷一下' : '我也来'))
+const actionText = computed(() => (game.value === 'dice' ? tr('掷一下') : tr('我也来')))
 
 // 仅刚收发的 PK（5s 内）且未要求减弱动画时才播放揭晓动画；历史消息直接定格
 const animatable = finalRef.value != null && Date.now() - props.msg.ts < 5000 && !reduceMotion
@@ -80,7 +82,7 @@ const resultText = computed(() => {
   if (!finalRef.value) return props.msg.text
   if (settled.value) return pkResultText(finalRef.value)
   // 揭晓动画过程中文字固定，避免「出了石头/剪刀/布」随翻牌轮播乱跳（决议 #146）；翻牌手势图仍由 rolling 轮播
-  return game.value === 'dice' ? '投掷中…' : '出拳中…'
+  return game.value === 'dice' ? tr('投掷中…') : tr('出拳中…')
 })
 
 let tickTimer: ReturnType<typeof setInterval> | null = null
@@ -147,7 +149,7 @@ onUnmounted(() => {
 <template>
   <div class="pk-bubble" :class="{ mine, 'has-action': showAction }">
     <div class="pk-stage" :class="{ reveal: justSettled }">
-      <div v-if="game === 'dice'" class="dice-cube" :style="cubeStyle" :aria-label="`${diceValue} 点`">
+      <div v-if="game === 'dice'" class="dice-cube" :style="cubeStyle" :aria-label="tr('{0} 点', { 0: diceValue })">
         <div v-for="face in 6" :key="face" class="dice-side" :class="'s' + face">
           <span v-for="cell in 9" :key="cell" class="dice-cell">
             <span v-if="FACE_DOTS[face].has(cell - 1)" class="dice-dot"></span>

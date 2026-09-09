@@ -1,8 +1,11 @@
 <script setup lang="ts">
+import { tr, language, applyLanguage } from './utils/i18n'
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import {
   darkTheme,
   dateZhCN,
+  dateEnUS,
+  enUS,
   NButton,
   NConfigProvider,
   NInput,
@@ -22,6 +25,7 @@ import {
   type SettingsView,
   type TransferView
 } from '../../shared/ipc'
+import { LANGUAGE_OPTIONS } from '../../shared/i18n'
 import { DEFAULT_TCP_PORT, DEFAULT_UDP_PORT } from '../../shared/protocol'
 import { applyAppearance } from './utils/appearance'
 import { formatBytes } from './utils/format'
@@ -60,50 +64,50 @@ type Section =
   | 'shortcuts'
   | 'about'
 
-const sections: Array<{ id: Section; icon: string; label: string; summary: string }> = [
+const sections = computed<Array<{ id: Section; icon: string; label: string; summary: string }>>(() => ([
   {
     id: 'profile',
     icon: 'settings-profile',
-    label: '账号资料',
-    summary: '昵称、头像等会展示在通讯录和聊天窗口。'
+    label: tr('账号资料'),
+    summary: tr('昵称、头像等会展示在通讯录和聊天窗口。')
   },
   {
     id: 'general',
     icon: 'settings-general',
-    label: '通用',
-    summary: '启动方式、窗口行为与外观主题。'
+    label: tr('通用'),
+    summary: tr('启动方式、窗口行为与外观主题。')
   },
   {
     id: 'notify',
     icon: 'settings-notify',
-    label: '通知',
-    summary: '新消息的桌面提醒与提示音。'
+    label: tr('通知'),
+    summary: tr('新消息的桌面提醒与提示音。')
   },
   {
     id: 'storage',
     icon: 'settings-storage',
-    label: '聊天与文件',
-    summary: '文件保存、发送键、聊天记录导出与传输记录。'
+    label: tr('聊天与文件'),
+    summary: tr('文件保存、发送键、聊天记录导出与传输记录。')
   },
   {
     id: 'network',
     icon: 'settings-network',
-    label: '网络',
-    summary: '手动节点、网段扫描与端口。'
+    label: tr('网络'),
+    summary: tr('手动节点、网段扫描与端口。')
   },
   {
     id: 'shortcuts',
     icon: 'settings-shortcuts',
-    label: '快捷键',
-    summary: '截图与主窗口的全局快捷键。'
+    label: tr('快捷键'),
+    summary: tr('截图与主窗口的全局快捷键。')
   },
   {
     id: 'about',
     icon: 'settings-about',
-    label: '关于',
-    summary: '版本、许可与纯内网安全说明。'
+    label: tr('关于'),
+    summary: tr('版本、许可与纯内网安全说明。')
   }
-]
+]))
 
 const section = ref<Section>('profile')
 const settings = ref<SettingsView | null>(null)
@@ -117,16 +121,16 @@ const checkingUpdate = ref(false)
 const requestingUpdate = ref(false)
 const updateCheckKind = ref<UpdateCheckKind>('idle')
 const updateCheckMsg = ref('')
-const updateHelpText = '只从已发现的在线同事中查找同平台更新源，不访问外网；同步更新只发起内网索包，不会静默安装。'
+const updateHelpText = computed(() => (tr('只从已发现的在线同事中查找同平台更新源，不访问外网；同步更新只发起内网索包，不会静默安装。')))
 const updateActionBusy = computed(() => checkingUpdate.value || requestingUpdate.value)
 const updateCheckSummary = computed(() => {
-  if (updateCheckKind.value === 'checking') return '正在检测'
-  if (updateCheckKind.value === 'found') return '有新版'
-  if (updateCheckKind.value === 'requesting') return '正在请求'
-  if (updateCheckKind.value === 'requested') return '请求已发出'
-  if (updateCheckKind.value === 'none') return '已是最新'
-  if (updateCheckKind.value === 'error') return '检测失败'
-  return '未检查'
+  if (updateCheckKind.value === 'checking') return tr('正在检测')
+  if (updateCheckKind.value === 'found') return tr('有新版')
+  if (updateCheckKind.value === 'requesting') return tr('正在请求')
+  if (updateCheckKind.value === 'requested') return tr('请求已发出')
+  if (updateCheckKind.value === 'none') return tr('已是最新')
+  if (updateCheckKind.value === 'error') return tr('检测失败')
+  return tr('未检查')
 })
 async function checkForUpdate(): Promise<void> {
   if (updateActionBusy.value) return
@@ -137,14 +141,14 @@ async function checkForUpdate(): Promise<void> {
     const result = await window.pantry.checkUpdate()
     if (result) {
       updateCheckKind.value = 'found'
-      updateCheckMsg.value = `v${result.version}，来自 ${result.fromName}。`
+      updateCheckMsg.value = tr('v{0}，来自 {1}。', { 0: result.version, 1: result.fromName })
     } else {
       updateCheckKind.value = 'none'
       updateCheckMsg.value = ''
     }
   } catch {
     updateCheckKind.value = 'error'
-    updateCheckMsg.value = '检测失败，请稍后重试。'
+    updateCheckMsg.value = tr('检测失败，请稍后重试。')
   } finally {
     checkingUpdate.value = false
   }
@@ -161,11 +165,11 @@ async function requestDetectedUpdate(): Promise<void> {
       updateCheckMsg.value = ''
     } else {
       updateCheckKind.value = 'error'
-      updateCheckMsg.value = '请求未送达，请稍后重试。'
+      updateCheckMsg.value = tr('请求未送达，请稍后重试。')
     }
   } catch {
     updateCheckKind.value = 'error'
-    updateCheckMsg.value = '请求更新失败，请稍后重试。'
+    updateCheckMsg.value = tr('请求更新失败，请稍后重试。')
   } finally {
     requestingUpdate.value = false
   }
@@ -175,10 +179,10 @@ const updateActionIcon = computed(() => {
   return updateCheckKind.value === 'found' ? 'check' : 'refresh'
 })
 const updateActionLabel = computed(() => {
-  if (checkingUpdate.value) return '检测中'
-  if (requestingUpdate.value) return '请求中'
-  if (updateCheckKind.value === 'found') return '同步更新'
-  return '检测内网更新'
+  if (checkingUpdate.value) return tr('检测中')
+  if (requestingUpdate.value) return tr('请求中')
+  if (updateCheckKind.value === 'found') return tr('同步更新')
+  return tr('检测内网更新')
 })
 function runUpdateAction(): void {
   if (updateCheckKind.value === 'found') {
@@ -226,18 +230,18 @@ const captureShortcut = ref('')
 const showHideShortcut = ref('')
 let stopSettings: (() => void) | null = null
 const selectedAvatarEmoji = computed(() => avatarEmojiIndex(avatar.value))
-const selectedAvatarColor = computed(() => avatarColorIndex(avatar.value, nick.value || '茶'))
+const selectedAvatarColor = computed(() => avatarColorIndex(avatar.value, nick.value || tr('茶')))
 const avatarSummary = computed(() => {
-  if (avatarHash.value) return '自定义头像'
-  const colorName = AVATAR_COLORS[selectedAvatarColor.value]?.name ?? ''
+  if (avatarHash.value) return tr('自定义头像')
+  const colorName = tr(AVATAR_COLORS[selectedAvatarColor.value]?.name ?? '')
   return isInitialAvatar(avatar.value)
-    ? `昵称首字 · ${colorName}`
-    : `动物表情 · ${colorName}`
+    ? tr('昵称首字 · {0}', { 0: colorName })
+    : tr('动物表情 · {0}', { 0: colorName })
 })
-const currentSection = computed(() => sections.find((item) => item.id === section.value) ?? sections[0])
+const currentSection = computed(() => sections.value.find((item) => item.id === section.value) ?? sections.value[0])
 const isMacPlatform = computed(() => info.value?.platform === 'darwin')
 const modifiedSendKeyLabel = computed(() =>
-  isMacPlatform.value ? 'Command + Enter 发送' : 'Control + Enter 发送'
+  isMacPlatform.value ? tr('Command + Enter 发送') : tr('Control + Enter 发送')
 )
 const activeNotice = computed(() => (section.value === 'network' ? scanTip.value : ''))
 const hasManualPeers = computed(() => (settings.value?.manualPeers.length ?? 0) > 0)
@@ -247,19 +251,20 @@ const naiveTheme = computed(() => (settings.value?.theme === 'dark' ? darkTheme 
 const naiveThemeOverrides = computed(() =>
   settings.value?.theme === 'dark' ? teahouseDarkThemeOverrides : teahouseLightThemeOverrides
 )
+const languageOptions = [...LANGUAGE_OPTIONS]
 const fontScaleOptions = [
   { label: '100%', value: 100 },
   { label: '110%', value: 110 },
   { label: '125%', value: 125 }
 ]
-const soundOptions = [
-  { label: '关闭', value: 'none' },
-  { label: '水滴', value: 'drop' },
-  { label: '木鱼', value: 'wood' },
-  { label: '叮咚', value: 'ding' }
-]
+const soundOptions = computed(() => ([
+  { label: tr('关闭提示音'), value: 'none' },
+  { label: tr('水滴'), value: 'drop' },
+  { label: tr('木鱼'), value: 'wood' },
+  { label: tr('叮咚'), value: 'ding' }
+]))
 const conversationOptions = computed(() => [
-  { label: '全部会话', value: '' },
+  { label: tr('全部会话'), value: '' },
   ...conversations.value.map((conv) => ({ label: convLabel(conv), value: conv.id }))
 ])
 
@@ -268,7 +273,10 @@ onMounted(async () => {
   applyPerformanceProfile(info.value)
   await reload()
   stopSettings = window.pantry.onSettingsUpdated((s) => {
-    syncForm(s)
+    if (settings.value && settings.value.language !== s.language) {
+      settings.value = s
+      applyAppearance(s)
+    } else syncForm(s)
   })
 })
 
@@ -311,7 +319,7 @@ function syncForm(s: SettingsView): void {
 // 「设置已保存」浮层 toast（决议 #151）：失焦 / 调整即时保存后，底部居中胶囊淡入，停留约 1.8s 后淡出
 const toast = ref('')
 let toastTimer: ReturnType<typeof setTimeout> | null = null
-function flashSaved(text = '设置已保存'): void {
+function flashSaved(text = tr('设置已保存')): void {
   toast.value = text
   if (toastTimer) clearTimeout(toastTimer)
   toastTimer = setTimeout(() => (toast.value = ''), 1800)
@@ -322,7 +330,18 @@ async function openUrl(url: string): Promise<void> {
   await window.pantry.openUrl(url)
 }
 
-async function saveApp(patch: AppSettingsPatch, tip = '已保存'): Promise<void> {
+async function changeLanguage(value: SettingsView['language']): Promise<void> {
+  try {
+    const next = await window.pantry.saveAppSettings({ language: value })
+    await applyLanguage(next.language)
+    settings.value = next
+    flashSaved()
+  } catch {
+    flashSaved(tr('切换语言失败，请重试'))
+  }
+}
+
+async function saveApp(patch: AppSettingsPatch, tip = tr('已保存')): Promise<void> {
   const next = await window.pantry.saveAppSettings(patch)
   syncForm(next)
   flashSaved(tip)
@@ -346,7 +365,7 @@ function profileDirty(): boolean {
 async function autoSaveProfile(): Promise<void> {
   if (!nick.value.trim()) {
     if (settings.value) nick.value = settings.value.nick
-    flashSaved('昵称不能为空')
+    flashSaved(tr('昵称不能为空'))
     return
   }
   if (!profileDirty()) return
@@ -360,7 +379,7 @@ async function autoSaveProfile(): Promise<void> {
     fileDir: fileDir.value
   })
   if (settings.value) syncForm(settings.value)
-  flashSaved('设置已保存')
+  flashSaved(tr('设置已保存'))
 }
 
 function chooseInitialAvatar(): void {
@@ -411,16 +430,16 @@ async function applyCustomAvatar(bytes: ArrayBuffer): Promise<void> {
     const next = await window.pantry.setProfileAvatar({ kind: 'custom', bytes })
     syncForm(next)
     avatarSource.value = null
-    flashSaved('头像已更新')
+    flashSaved(tr('头像已更新'))
   } catch {
-    avatarError.value = '保存头像失败，请稍后重试'
+    avatarError.value = tr('保存头像失败，请稍后重试')
   } finally {
     avatarSaving.value = false
   }
 }
 
 function avatarOptionStyle(index: number): { backgroundColor: string; color: string } {
-  return avatarStyle(avatarValue(index, selectedAvatarColor.value), nick.value || '茶')
+  return avatarStyle(avatarValue(index, selectedAvatarColor.value), nick.value || tr('茶'))
 }
 
 async function pickFileDir(): Promise<void> {
@@ -497,7 +516,7 @@ async function resetAppSettings(): Promise<void> {
       captureShortcut: DEFAULT_CAPTURE_SHORTCUT,
       showHideShortcut: DEFAULT_SHOWHIDE_SHORTCUT
     },
-    '应用设置已重置'
+    tr('应用设置已重置')
   )
 }
 
@@ -507,7 +526,7 @@ async function saveShortcuts(): Promise<void> {
       captureShortcut: captureShortcut.value.trim(),
       showHideShortcut: showHideShortcut.value.trim()
     },
-    '快捷键已保存'
+    tr('快捷键已保存')
   )
 }
 
@@ -533,7 +552,7 @@ async function resetShortcuts(): Promise<void> {
       captureShortcut: DEFAULT_CAPTURE_SHORTCUT,
       showHideShortcut: DEFAULT_SHOWHIDE_SHORTCUT
     },
-    '已恢复默认快捷键'
+    tr('已恢复默认快捷键')
   )
 }
 
@@ -596,10 +615,10 @@ async function autoSavePorts(): Promise<void> {
   if (!udpPort || !tcpPort) {
     udpPortInput.value = String(s.udpPort)
     tcpPortInput.value = String(s.tcpPort)
-    flashSaved('端口需为 1-65535')
+    flashSaved(tr('端口需为 1-65535'))
     return
   }
-  await saveApp({ udpPort, tcpPort }, '端口已保存，重启后生效')
+  await saveApp({ udpPort, tcpPort }, tr('端口已保存，重启后生效'))
 }
 
 function parsePort(value: string): number | null {
@@ -643,7 +662,7 @@ async function finishPortEdit(field: PortField): Promise<void> {
 
 async function exportData(format: 'backup' | 'html' | 'txt'): Promise<void> {
   const path = await window.pantry.exportData(format, exportOptions())
-  flashSaved(path ? '已导出' : '导出已取消')
+  flashSaved(path ? tr('已导出') : tr('导出已取消'))
 }
 
 function exportOptions(): DataExportOptions | undefined {
@@ -669,13 +688,13 @@ function dateEnd(value: string): number | null {
 }
 
 function convLabel(conv: ConversationView): string {
-  const prefix = conv.type === 'group' ? '讨论组' : '单聊'
+  const prefix = conv.type === 'group' ? tr('讨论组') : tr('单聊')
   return `${prefix} ${conv.peerId}${conv.preview ? ` · ${conv.preview.slice(0, 18)}` : ''}`
 }
 
 async function importData(): Promise<void> {
   const result = await window.pantry.importData()
-  flashSaved(result ? `已导入 ${result.imported} 条，跳过 ${result.skipped} 条` : '导入已取消')
+  flashSaved(result ? tr('已导入 {0} 条，跳过 {1} 条', { 0: result.imported, 1: result.skipped }) : tr('导入已取消'))
 }
 
 async function revealTransfer(transferId: string): Promise<void> {
@@ -684,13 +703,13 @@ async function revealTransfer(transferId: string): Promise<void> {
 
 function transferStatusLabel(view: TransferView): string {
   const map: Record<TransferView['status'], string> = {
-    offering: '等待',
-    accepted: '传输中',
-    done: '完成',
-    declined: '已拒收',
-    canceled: '已取消',
-    failed: '失败',
-    expired: view.direction === 'out' ? '发送已到期' : '文件已过期'
+    offering: tr('等待'),
+    accepted: tr('传输中'),
+    done: tr('完成'),
+    declined: tr('已拒收'),
+    canceled: tr('已取消'),
+    failed: tr('失败'),
+    expired: view.direction === 'out' ? tr('发送已到期') : tr('文件已过期')
   }
   return map[view.status]
 }
@@ -702,9 +721,9 @@ function transferMeta(view: TransferView): string {
 }
 
 function scanRangeSourceLabel(item: ScanRangeItemView): string {
-  if (item.source === 'self') return '本机'
-  const name = item.sourceName?.trim() || '同事'
-  return `来自 ${name}`
+  if (item.source === 'self') return tr('本机')
+  const name = item.sourceName?.trim() || tr('同事')
+  return tr('来自 {0}', { 0: name })
 }
 
 async function addPeer(): Promise<void> {
@@ -714,9 +733,9 @@ async function addPeer(): Promise<void> {
   if (ok) {
     newPeer.value = ''
     await reload()
-    flashSaved('已添加并探测')
+    flashSaved(tr('已添加并探测'))
   } else {
-    flashSaved('地址格式不对（ip 或 ip:端口）')
+    flashSaved(tr('地址格式不对（ip 或 ip:端口）'))
   }
 }
 
@@ -732,10 +751,10 @@ async function addRange(): Promise<void> {
   if (!cidr || !settings.value) return
   const count = await window.pantry.scanRange(cidr)
   if (count < 0) {
-    scanTip.value = '网段不合法（如 10.1.2.0/24，最大 /22）'
+    scanTip.value = tr('网段不合法（如 10.1.2.0/24，最大 /22）')
     return
   }
-  scanTip.value = `已向 ${count} 个地址发出探测，在线的会出现在通讯录`
+  scanTip.value = tr('已向 {0} 个地址发出探测，在线的会出现在通讯录', { 0: count })
   if (!settings.value.scanRanges.includes(cidr)) {
     await saveApp({
       scanRanges: [...settings.value.scanRanges, cidr]
@@ -747,7 +766,7 @@ async function addRange(): Promise<void> {
 async function rescan(cidr: string): Promise<void> {
   const count = await window.pantry.scanRange(cidr)
   scanTip.value =
-    count >= 0 ? `已向 ${count} 个地址发出探测，新上线的同事稍后计入在线数` : '网段不合法'
+    count >= 0 ? tr('已向 {0} 个地址发出探测，新上线的同事稍后计入在线数', { 0: count }) : tr('网段不合法')
   // 探测/应答异步滞后，延迟重拉设置以更新在线数（决议 #160）
   if (count >= 0) setTimeout(() => void reload(), 2500)
 }
@@ -770,15 +789,15 @@ async function confirmRemove(cidr: string): Promise<void> {
   <NConfigProvider
     :theme="naiveTheme"
     :theme-overrides="naiveThemeOverrides"
-    :locale="zhCN"
-    :date-locale="dateZhCN"
+    :locale="language === 'en' ? enUS : zhCN"
+    :date-locale="language === 'en' ? dateEnUS : dateZhCN"
   >
     <div class="settings">
     <!-- 沉浸式无标题栏（决议 #49/#52）：顶部拖拽带；设置窗 Win/Linux 仅自绘关闭按钮 -->
     <WindowDragStrip />
     <WindowControls buttons="close" />
     <aside class="sidebar">
-      <nav class="nav" aria-label="设置分组">
+      <nav class="nav" :aria-label="tr('设置分组')">
         <button
           v-for="item in sections"
           :key="item.id"
@@ -800,14 +819,14 @@ async function confirmRemove(cidr: string): Promise<void> {
         <span v-if="activeNotice" class="notice">{{ activeNotice }}</span>
       </header>
 
-      <div v-if="!settings" class="empty-panel">正在读取设置...</div>
+      <div v-if="!settings" class="empty-panel">{{ tr('正在读取设置...') }}</div>
 
       <template v-else>
         <section v-if="section === 'profile'" class="page-section">
           <div class="panel">
             <div class="panel-head">
-              <h2>个人身份</h2>
-              <p>昵称必填。公司、部门、团队会用于通讯录树形分组。</p>
+              <h2>{{ tr('个人身份') }}</h2>
+              <p>{{ tr('昵称必填。公司、部门、团队会用于通讯录树形分组。') }}</p>
             </div>
             <!-- 头像编辑器（决议 #50/#245）：三种模式按需展示动物、色板或上传入口 -->
             <div class="avatar-editor">
@@ -816,7 +835,7 @@ async function confirmRemove(cidr: string): Promise<void> {
                   class="avatar-preview"
                   :avatar="avatar"
                   :avatar-hash="avatarHash"
-                  :name="nick || '茶'"
+                  :name="nick || tr('茶')"
                 />
                 <span class="avatar-current">{{ avatarSummary }}</span>
               </div>
@@ -824,7 +843,7 @@ async function confirmRemove(cidr: string): Promise<void> {
                 <div
                   class="preference-segment avatar-mode"
                   role="radiogroup"
-                  aria-label="头像样式"
+                  :aria-label="tr('头像样式')"
                 >
                   <button
                     type="button"
@@ -832,42 +851,36 @@ async function confirmRemove(cidr: string): Promise<void> {
                     :class="{ on: avatarMode === 'animal' }"
                     :aria-checked="avatarMode === 'animal'"
                     @click="chooseAvatarEmoji(selectedAvatarEmoji >= 0 ? selectedAvatarEmoji : 0)"
-                  >
-                    动物表情
-                  </button>
+                  >{{ tr('动物表情') }}</button>
                   <button
                     type="button"
                     role="radio"
                     :class="{ on: avatarMode === 'initial' }"
                     :aria-checked="avatarMode === 'initial'"
                     @click="chooseInitialAvatar"
-                  >
-                    昵称首字
-                  </button>
+                  >{{ tr('昵称首字') }}</button>
                   <button
                     type="button"
                     role="radio"
                     :class="{ on: avatarMode === 'custom' }"
                     :aria-checked="avatarMode === 'custom'"
                     @click="selectCustomAvatarMode"
-                  >
-                    自定义头像
-                  </button>
+                  >{{ tr('自定义头像') }}</button>
                 </div>
                 <p class="avatar-mode-hint">
                   {{
                     avatarMode === 'custom'
-                      ? '上传本地图片并裁剪；图片只会在局域网内按需同步。'
+                      ? tr('上传本地图片并裁剪；图片只会在局域网内按需同步。')
                       : avatarMode === 'initial'
-                      ? '使用昵称第一个字作头像，并从下方选择背景色。'
-                      : '从下方挑一个动物表情，再配一个背景色。'
+                      ? tr('使用昵称第一个字作头像，并从下方选择背景色。')
+                      : tr('从下方挑一个动物表情，再配一个背景色。')
                   }}
                 </p>
               </div>
               <div v-if="avatarMode !== 'custom'" class="avatar-pick">
                 <template v-if="avatarMode === 'animal'">
-                  <span class="avatar-label">动物表情</span>
-                  <div class="avatar-grid" aria-label="精选动物表情">
+                  <span class="avatar-label">{{ tr('动物表情') }}</span>
+                  <div class="avatar-grid" :aria-label="tr('精选动物表情')">
                     <button
                       v-for="(_, idx) in AVATAR_EMOJIS"
                       :key="idx"
@@ -875,15 +888,15 @@ async function confirmRemove(cidr: string): Promise<void> {
                       class="avatar-choice"
                       :class="{ on: selectedAvatarEmoji === idx }"
                       :style="avatarOptionStyle(idx)"
-                      :aria-label="`动物表情 ${idx + 1}`"
+                      :aria-label="tr('动物表情 {0}', { 0: idx + 1 })"
                       @click="chooseAvatarEmoji(idx)"
                     >
                       <AvatarGlyph :index="idx" />
                     </button>
                   </div>
                 </template>
-                <span class="avatar-label">背景颜色</span>
-                <div class="avatar-colors" aria-label="头像背景颜色">
+                <span class="avatar-label">{{ tr('背景颜色') }}</span>
+                <div class="avatar-colors" :aria-label="tr('头像背景颜色')">
                   <button
                     v-for="(color, idx) in AVATAR_COLORS"
                     :key="color.name"
@@ -891,52 +904,50 @@ async function confirmRemove(cidr: string): Promise<void> {
                     class="color-choice"
                     :class="{ on: selectedAvatarColor === idx }"
                     :style="{ backgroundColor: color.bg }"
-                    :title="color.name"
-                    :aria-label="`头像背景颜色：${color.name}`"
+                    :title="tr(color.name)"
+                    :aria-label="tr('头像背景颜色：{0}', { 0: tr(color.name) })"
                     @click="chooseAvatarColor(idx)"
                   ></button>
                 </div>
               </div>
               <div v-else class="avatar-pick avatar-picture-actions">
-                <button type="button" :disabled="avatarSaving" @click="pickCustomAvatar">
-                  上传图片
-                </button>
+                <button type="button" :disabled="avatarSaving" @click="pickCustomAvatar">{{ tr('上传图片') }}</button>
               </div>
             </div>
             <div class="field-grid">
               <label class="field">
-                <span>昵称</span>
+                <span>{{ tr('昵称') }}</span>
                 <NInput
                   v-model:value="nick"
                   maxlength="32"
-                  placeholder="请输入昵称"
+                  :placeholder="tr('请输入昵称')"
                   @blur="autoSaveProfile"
                 />
               </label>
               <label class="field">
-                <span>公司</span>
+                <span>{{ tr('公司') }}</span>
                 <NInput
                   v-model:value="company"
                   maxlength="32"
-                  placeholder="选填"
+                  :placeholder="tr('选填')"
                   @blur="autoSaveProfile"
                 />
               </label>
               <label class="field">
-                <span>部门</span>
+                <span>{{ tr('部门') }}</span>
                 <NInput
                   v-model:value="dept"
                   maxlength="32"
-                  placeholder="选填"
+                  :placeholder="tr('选填')"
                   @blur="autoSaveProfile"
                 />
               </label>
               <label class="field">
-                <span>团队</span>
+                <span>{{ tr('团队') }}</span>
                 <NInput
                   v-model:value="team"
                   maxlength="32"
-                  placeholder="选填"
+                  :placeholder="tr('选填')"
                   @blur="autoSaveProfile"
                 />
               </label>
@@ -947,20 +958,20 @@ async function confirmRemove(cidr: string): Promise<void> {
         <section v-else-if="section === 'general'" class="page-section">
           <div class="panel">
             <div class="panel-head">
-              <h2>启动与窗口</h2>
-              <p>办公内网常驻使用，默认保持后台在线。</p>
+              <h2>{{ tr('启动与窗口') }}</h2>
+              <p>{{ tr('办公内网常驻使用，默认保持后台在线。') }}</p>
             </div>
             <div class="setting-line">
               <div>
-                <strong>开机自启</strong>
-                <small>登录系统后自动启动茶话间。</small>
+                <strong>{{ tr('开机自启') }}</strong>
+                <small>{{ tr('登录系统后自动启动茶话间。') }}</small>
               </div>
               <NSwitch :value="settings.autoLaunch" @update:value="toggleAutoLaunch" />
             </div>
             <div class="setting-line">
               <div>
-                <strong>关闭到托盘</strong>
-                <small>点关闭按钮时保持在线，仍可接收消息。</small>
+                <strong>{{ tr('关闭到托盘') }}</strong>
+                <small>{{ tr('点关闭按钮时保持在线，仍可接收消息。') }}</small>
               </div>
               <NSwitch :value="settings.closeToTray" @update:value="toggleCloseToTray" />
             </div>
@@ -968,24 +979,32 @@ async function confirmRemove(cidr: string): Promise<void> {
 
           <div class="panel">
             <div class="panel-head">
-              <h2>外观</h2>
-              <p>主题和字体缩放会同步到主窗口，调整后立即生效。</p>
+              <h2>{{ tr('外观') }}</h2>
+              <p>{{ tr('主题和字体缩放会同步到主窗口，调整后立即生效。') }}</p>
             </div>
             <div class="setting-line">
               <div>
-                <strong>主题</strong>
-                <small>深色主题适合弱光环境。</small>
+                <strong>语言 / Language</strong>
+                <small>{{ tr('立即应用到所有窗口。') }}</small>
+              </div>
+              <NSelect class="language-select" :value="settings.language" :options="languageOptions"
+                aria-label="语言 / Language" @update:value="changeLanguage" />
+            </div>
+            <div class="setting-line">
+              <div>
+                <strong>{{ tr('主题') }}</strong>
+                <small>{{ tr('深色主题适合弱光环境。') }}</small>
               </div>
               <div
                 class="preference-segment theme-segment"
                 role="radiogroup"
-                aria-label="主题"
+                :aria-label="tr('主题')"
                 :data-second="settings.theme === 'dark'"
               >
                 <button
                   type="button"
                   role="radio"
-                  aria-label="浅色主题"
+                  :aria-label="tr('浅色主题')"
                   :aria-checked="settings.theme === 'light'"
                   :class="{ on: settings.theme === 'light' }"
                   @click="changeTheme('light')"
@@ -995,7 +1014,7 @@ async function confirmRemove(cidr: string): Promise<void> {
                 <button
                   type="button"
                   role="radio"
-                  aria-label="深色主题"
+                  :aria-label="tr('深色主题')"
                   :aria-checked="settings.theme === 'dark'"
                   :class="{ on: settings.theme === 'dark' }"
                   @click="changeTheme('dark')"
@@ -1006,8 +1025,8 @@ async function confirmRemove(cidr: string): Promise<void> {
             </div>
             <label class="setting-line">
               <div>
-                <strong>字体缩放</strong>
-                <small>适配投屏、远距离办公和高分屏。</small>
+                <strong>{{ tr('字体缩放') }}</strong>
+                <small>{{ tr('适配投屏、远距离办公和高分屏。') }}</small>
               </div>
               <NSelect
                 class="control-select"
@@ -1017,7 +1036,7 @@ async function confirmRemove(cidr: string): Promise<void> {
               />
             </label>
             <div class="panel-actions">
-              <NButton secondary @click="resetAppSettings">重置应用设置</NButton>
+              <NButton secondary @click="resetAppSettings">{{ tr('重置应用设置') }}</NButton>
             </div>
           </div>
         </section>
@@ -1025,27 +1044,27 @@ async function confirmRemove(cidr: string): Promise<void> {
         <section v-else-if="section === 'notify'" class="page-section">
           <div class="panel">
             <div class="panel-head">
-              <h2>提醒</h2>
-              <p>通知开关只影响桌面提醒，不影响消息接收。</p>
+              <h2>{{ tr('提醒') }}</h2>
+              <p>{{ tr('通知开关只影响桌面提醒，不影响消息接收。') }}</p>
             </div>
             <div class="setting-line">
               <div>
-                <strong>系统通知</strong>
-                <small>新消息到达时显示系统通知。</small>
+                <strong>{{ tr('系统通知') }}</strong>
+                <small>{{ tr('新消息到达时显示系统通知。') }}</small>
               </div>
               <NSwitch :value="settings.notifications" @update:value="toggleNotifications" />
             </div>
             <div class="setting-line">
               <div>
-                <strong>通知内容预览</strong>
-                <small>关闭后通知只显示会话名称。</small>
+                <strong>{{ tr('通知内容预览') }}</strong>
+                <small>{{ tr('关闭后通知只显示会话名称。') }}</small>
               </div>
               <NSwitch :value="settings.showMessagePreview" @update:value="toggleMessagePreview" />
             </div>
             <label class="setting-line">
               <div>
-                <strong>提示音</strong>
-                <small>默认关闭，减少办公环境打扰。</small>
+                <strong>{{ tr('提示音') }}</strong>
+                <small>{{ tr('默认关闭，减少办公环境打扰。') }}</small>
               </div>
               <NSelect
                 class="control-select"
@@ -1060,20 +1079,20 @@ async function confirmRemove(cidr: string): Promise<void> {
         <section v-else-if="section === 'storage'" class="page-section">
           <div class="panel">
             <div class="panel-head">
-              <h2>文件接收</h2>
-              <p>不用另存为时，收到的文件会按联系人名称分目录保存。</p>
+              <h2>{{ tr('文件接收') }}</h2>
+              <p>{{ tr('不用另存为时，收到的文件会按联系人名称分目录保存。') }}</p>
             </div>
             <div class="setting-line">
               <div>
-                <strong>保存位置</strong>
+                <strong>{{ tr('保存位置') }}</strong>
                 <small class="path">{{ fileDir || settings.defaultFileDir }}</small>
               </div>
-              <NButton secondary size="small" @click="pickFileDir">更改</NButton>
+              <NButton secondary size="small" @click="pickFileDir">{{ tr('更改') }}</NButton>
             </div>
             <div class="setting-line">
               <div>
-                <strong>允许同事直接发送文件</strong>
-                <small>开启后，私聊文件可由发送方免确认发来，同样保存到联系人目录。</small>
+                <strong>{{ tr('允许同事直接发送文件') }}</strong>
+                <small>{{ tr('开启后，私聊文件可由发送方免确认发来，同样保存到联系人目录。') }}</small>
               </div>
               <NSwitch
                 :value="settings.allowDirectFileSend"
@@ -1083,34 +1102,32 @@ async function confirmRemove(cidr: string): Promise<void> {
             <!-- 我的文件柜已迁到文件柜窗口（决议 #283）：此处只留指路，不摆重复控件 -->
             <div class="setting-line">
               <div>
-                <strong>我的文件柜</strong>
-                <small>
-                  共享目录、默认权限、按联系人例外都在主界面的「文件柜」里设置——左侧导航栏的文件柜按钮即可进入。
-                </small>
+                <strong>{{ tr('我的文件柜') }}</strong>
+                <small>{{ tr('共享目录、默认权限、按联系人例外都在主界面的「文件柜」里设置——左侧导航栏的文件柜按钮即可进入。') }}</small>
               </div>
-              <NButton secondary size="small" @click="openCabinet">打开文件柜</NButton>
+              <NButton secondary size="small" @click="openCabinet">{{ tr('打开文件柜') }}</NButton>
             </div>
           </div>
           <div class="panel">
             <div class="panel-head">
-              <h2>发送</h2>
-              <p>发送键影响所有单聊和讨论组输入框，调整后立即生效。</p>
+              <h2>{{ tr('发送') }}</h2>
+              <p>{{ tr('发送键影响所有单聊和讨论组输入框，调整后立即生效。') }}</p>
             </div>
             <div class="setting-line">
               <div>
-                <strong>发送键</strong>
-                <small>另一组组合键用于换行。</small>
+                <strong>{{ tr('发送键') }}</strong>
+                <small>{{ tr('另一组组合键用于换行。') }}</small>
               </div>
               <div
                 class="preference-segment send-key-segment"
                 role="radiogroup"
-                aria-label="发送键"
+                :aria-label="tr('发送键')"
                 :data-second="settings.sendKey === 'ctrlEnter'"
               >
                 <button
                   type="button"
                   role="radio"
-                  aria-label="Enter 发送"
+                  :aria-label="tr('Enter 发送')"
                   :aria-checked="settings.sendKey === 'enter'"
                   :class="{ on: settings.sendKey === 'enter' }"
                   @click="changeSendKey('enter')"
@@ -1141,11 +1158,11 @@ async function confirmRemove(cidr: string): Promise<void> {
 
           <div class="panel">
             <div class="panel-head">
-              <h2>聊天记录</h2>
-              <p>导出阅读格式或迁移备份包；导入时会按消息 ID 去重。</p>
+              <h2>{{ tr('聊天记录') }}</h2>
+              <p>{{ tr('导出阅读格式或迁移备份包；导入时会按消息 ID 去重。') }}</p>
             </div>
             <label class="field">
-              <span>导出会话</span>
+              <span>{{ tr('导出会话') }}</span>
               <NSelect
                 v-model:value="exportConvId"
                 :options="conversationOptions"
@@ -1153,27 +1170,27 @@ async function confirmRemove(cidr: string): Promise<void> {
               />
             </label>
             <div class="field">
-              <span>时间范围</span>
+              <span>{{ tr('时间范围') }}</span>
               <div class="date-range">
                 <input v-model="exportFrom" type="date" />
-                <span>至</span>
+                <span>{{ tr('至') }}</span>
                 <input v-model="exportTo" type="date" />
               </div>
             </div>
             <div class="button-row export-actions">
-              <NButton secondary @click="exportData('backup')">备份包</NButton>
+              <NButton secondary @click="exportData('backup')">{{ tr('备份包') }}</NButton>
               <NButton secondary @click="exportData('html')">HTML</NButton>
               <NButton secondary @click="exportData('txt')">TXT</NButton>
-              <NButton type="primary" secondary @click="importData">导入</NButton>
+              <NButton type="primary" secondary @click="importData">{{ tr('导入') }}</NButton>
             </div>
           </div>
 
           <div class="panel">
             <div class="panel-head">
-              <h2>传输记录</h2>
-              <p>显示最近 30 条文件传输。</p>
+              <h2>{{ tr('传输记录') }}</h2>
+              <p>{{ tr('显示最近 30 条文件传输。') }}</p>
             </div>
-            <div v-if="!hasTransfers" class="empty-state">暂无传输记录</div>
+            <div v-if="!hasTransfers" class="empty-state">{{ tr('暂无传输记录') }}</div>
             <ul v-else class="transfer-list">
               <li v-for="t in transfers" :key="t.transferId">
                 <div>
@@ -1185,9 +1202,7 @@ async function confirmRemove(cidr: string): Promise<void> {
                   size="small"
                   :disabled="!t.savedPath"
                   @click="revealTransfer(t.transferId)"
-                >
-                  打开
-                </NButton>
+                >{{ tr('打开') }}</NButton>
               </li>
             </ul>
           </div>
@@ -1196,22 +1211,22 @@ async function confirmRemove(cidr: string): Promise<void> {
         <section v-else-if="section === 'network'" class="page-section">
           <div class="panel">
             <div class="panel-head">
-              <h2>手动节点</h2>
-              <p>跨网段发现失败时，可手动添加对方 IP 或 IP:端口。</p>
+              <h2>{{ tr('手动节点') }}</h2>
+              <p>{{ tr('跨网段发现失败时，可手动添加对方 IP 或 IP:端口。') }}</p>
             </div>
             <div class="inline-form">
               <NInput
                 v-model:value="newPeer"
-                placeholder="如 10.2.0.8 或 10.2.0.8:17878"
+                :placeholder="tr('如 10.2.0.8 或 10.2.0.8:17878')"
                 @keydown.enter="addPeer"
               />
-              <NButton type="primary" @click="addPeer">添加</NButton>
+              <NButton type="primary" @click="addPeer">{{ tr('添加') }}</NButton>
             </div>
-            <div v-if="!hasManualPeers" class="empty-state">尚未添加手动节点</div>
+            <div v-if="!hasManualPeers" class="empty-state">{{ tr('尚未添加手动节点') }}</div>
             <ul v-else class="chips">
               <li v-for="p in settings.manualPeers" :key="p">
                 <span>{{ p }}</span>
-                <button class="icon-button" title="移除" @click="removePeer(p)">
+                <button class="icon-button" :title="tr('移除')" @click="removePeer(p)">
                   <PantryIcon name="x" :size="13" />
                 </button>
               </li>
@@ -1220,23 +1235,23 @@ async function confirmRemove(cidr: string): Promise<void> {
 
           <div class="panel">
             <div class="panel-head">
-              <h2>网段扫描</h2>
-              <p>用于发现同内网不同网段的同事，最大支持 /22。</p>
+              <h2>{{ tr('网段扫描') }}</h2>
+              <p>{{ tr('用于发现同内网不同网段的同事，最大支持 /22。') }}</p>
             </div>
             <div class="inline-form">
               <NInput
                 v-model:value="newCidr"
-                placeholder="如 10.1.2.0/24"
+                :placeholder="tr('如 10.1.2.0/24')"
                 @keydown.enter="addRange"
               />
-              <NButton type="primary" @click="addRange">扫描</NButton>
+              <NButton type="primary" @click="addRange">{{ tr('扫描') }}</NButton>
             </div>
-            <div v-if="!hasScanRanges" class="empty-state">尚未保存扫描网段</div>
+            <div v-if="!hasScanRanges" class="empty-state">{{ tr('尚未保存扫描网段') }}</div>
             <div v-else class="range-table">
               <div class="range-row range-head">
-                <span>网段</span>
-                <span>在线</span>
-                <span>操作</span>
+                <span>{{ tr('网段') }}</span>
+                <span>{{ tr('在线') }}</span>
+                <span>{{ tr('操作') }}</span>
               </div>
               <div v-for="r in settings.scanRangeItems" :key="r.cidr" class="range-row">
                 <div class="range-cidr">
@@ -1247,17 +1262,17 @@ async function confirmRemove(cidr: string): Promise<void> {
                   <span class="count-badge" :class="{ zero: r.nodeCount === 0 }">{{ r.nodeCount }}</span>
                 </span>
                 <span class="range-ops">
-                  <button class="icon-button accent" title="刷新该网段（重新探测）" @click="rescan(r.cidr)">
+                  <button class="icon-button accent" :title="tr('刷新该网段（重新探测）')" @click="rescan(r.cidr)">
                     <PantryIcon name="refresh" :size="14" />
                   </button>
-                  <button class="icon-button danger" title="删除该网段" @click="confirmingCidr = r.cidr">
+                  <button class="icon-button danger" :title="tr('删除该网段')" @click="confirmingCidr = r.cidr">
                     <PantryIcon name="x" :size="14" />
                   </button>
                 </span>
                 <div v-if="confirmingCidr === r.cidr" class="range-confirm">
-                  <span class="confirm-q">删除该网段？</span>
-                  <button class="confirm-del" @click="confirmRemove(r.cidr)">删除</button>
-                  <button class="confirm-cancel" @click="confirmingCidr = null">取消</button>
+                  <span class="confirm-q">{{ tr('删除该网段？') }}</span>
+                  <button class="confirm-del" @click="confirmRemove(r.cidr)">{{ tr('删除') }}</button>
+                  <button class="confirm-cancel" @click="confirmingCidr = null">{{ tr('取消') }}</button>
                 </div>
               </div>
             </div>
@@ -1265,12 +1280,12 @@ async function confirmRemove(cidr: string): Promise<void> {
 
           <div class="panel">
             <div class="panel-head">
-              <h2>端口</h2>
-              <p>全员端口需一致，修改后重启应用生效。</p>
+              <h2>{{ tr('端口') }}</h2>
+              <p>{{ tr('全员端口需一致，修改后重启应用生效。') }}</p>
             </div>
             <div class="field-grid">
               <label class="field">
-                <span>UDP 端口</span>
+                <span>{{ tr('UDP 端口') }}</span>
                 <input
                   ref="udpPortElement"
                   v-model="udpPortInput"
@@ -1285,7 +1300,7 @@ async function confirmRemove(cidr: string): Promise<void> {
                 />
               </label>
               <label class="field">
-                <span>TCP 端口</span>
+                <span>{{ tr('TCP 端口') }}</span>
                 <input
                   ref="tcpPortElement"
                   v-model="tcpPortInput"
@@ -1306,11 +1321,11 @@ async function confirmRemove(cidr: string): Promise<void> {
         <section v-else-if="section === 'shortcuts'" class="page-section">
           <div class="panel">
             <div class="panel-head">
-              <h2>全局快捷键</h2>
-              <p>点击输入框后直接按下组合键（需包含 Ctrl/Alt 等修饰键）；Esc 或退格清空表示禁用。</p>
+              <h2>{{ tr('全局快捷键') }}</h2>
+              <p>{{ tr('点击输入框后直接按下组合键（需包含 Ctrl/Alt 等修饰键）；Esc 或退格清空表示禁用。') }}</p>
             </div>
             <label class="field">
-              <span>截图</span>
+              <span>{{ tr('截图') }}</span>
               <input
                 class="shortcut-input"
                 :class="{ recording: recordingShortcut === 'capture' }"
@@ -1319,18 +1334,16 @@ async function confirmRemove(cidr: string): Promise<void> {
                     ? ''
                     : shortcutLabel(captureShortcut)
                 "
-                :placeholder="recordingShortcut === 'capture' ? '按下新组合键…' : '未设置（已禁用）'"
+                :placeholder="recordingShortcut === 'capture' ? tr('按下新组合键…') : tr('未设置（已禁用）')"
                 readonly
                 @focus="recordingShortcut = 'capture'"
                 @blur="onShortcutBlur"
                 @keydown="onShortcutKeydown($event, 'capture')"
               />
-              <small v-if="settings.shortcutStatus && !settings.shortcutStatus.capture" class="shortcut-warn">
-                注册失败：组合键可能已被系统或其他程序占用（如 UOS 系统截图），请换一个组合后保存。
-              </small>
+              <small v-if="settings.shortcutStatus && !settings.shortcutStatus.capture" class="shortcut-warn">{{ tr('注册失败：组合键可能已被系统或其他程序占用（如 UOS 系统截图），请换一个组合后保存。') }}</small>
             </label>
             <label class="field">
-              <span>显示/隐藏主窗</span>
+              <span>{{ tr('显示/隐藏主窗') }}</span>
               <input
                 class="shortcut-input"
                 :class="{ recording: recordingShortcut === 'showHide' }"
@@ -1339,25 +1352,23 @@ async function confirmRemove(cidr: string): Promise<void> {
                     ? ''
                     : shortcutLabel(showHideShortcut)
                 "
-                :placeholder="recordingShortcut === 'showHide' ? '按下新组合键…' : '未设置（已禁用）'"
+                :placeholder="recordingShortcut === 'showHide' ? tr('按下新组合键…') : tr('未设置（已禁用）')"
                 readonly
                 @focus="recordingShortcut = 'showHide'"
                 @blur="onShortcutBlur"
                 @keydown="onShortcutKeydown($event, 'showHide')"
               />
-              <small v-if="settings.shortcutStatus && !settings.shortcutStatus.showHide" class="shortcut-warn">
-                注册失败：组合键可能已被系统或其他程序占用，请换一个组合后保存。
-              </small>
+              <small v-if="settings.shortcutStatus && !settings.shortcutStatus.showHide" class="shortcut-warn">{{ tr('注册失败：组合键可能已被系统或其他程序占用，请换一个组合后保存。') }}</small>
             </label>
             <div class="setting-line">
               <div>
-                <strong>截图时隐藏窗口</strong>
-                <small>避免把茶话间主窗口截进去。</small>
+                <strong>{{ tr('截图时隐藏窗口') }}</strong>
+                <small>{{ tr('避免把茶话间主窗口截进去。') }}</small>
               </div>
               <NSwitch :value="settings.hideOnCapture" @update:value="toggleHideOnCapture" />
             </div>
             <div class="panel-actions">
-              <NButton secondary @click="resetShortcuts">恢复默认</NButton>
+              <NButton secondary @click="resetShortcuts">{{ tr('恢复默认') }}</NButton>
             </div>
           </div>
         </section>
@@ -1367,26 +1378,26 @@ async function confirmRemove(cidr: string): Promise<void> {
             <!-- 品牌标识区（决议 #90 重设计）：居中圆标 + 中英文名 + 定位 + 纯内网信任徽条 -->
             <div class="about-hero">
               <PantryBrandLogo variant="color" :size="60" class="about-logo" />
-              <h2>茶话间<span class="about-latin">Teahouse</span></h2>
-              <p class="about-tagline">纯内网即时通讯与文件传输</p>
+              <h2>{{ tr('茶话间') }}<span v-if="language === 'zh-CN'" class="about-latin">Teahouse</span></h2>
+              <p class="about-tagline">{{ tr('纯内网即时通讯与文件传输') }}</p>
               <div class="about-trust">
                 <PantryIcon name="shield" :size="13" />
-                <span>无服务器 · 无遥测 · 数据不出局域网</span>
+                <span>{{ tr('无服务器 · 无遥测 · 数据不出局域网') }}</span>
               </div>
             </div>
 
             <!-- 默认只露版本 / 许可 / 源码 / 内网更新（决议 #90/#171/#225）：面向普通用户的核心信息 -->
             <dl class="about-rows">
               <div class="about-row">
-                <dt>版本</dt>
+                <dt>{{ tr('版本') }}</dt>
                 <dd class="mono">{{ info?.version ?? '-' }}</dd>
               </div>
               <div class="about-row">
-                <dt>许可</dt>
+                <dt>{{ tr('许可') }}</dt>
                 <dd>GPL-3.0-only</dd>
               </div>
               <div class="about-row">
-                <dt>源码</dt>
+                <dt>{{ tr('源码') }}</dt>
                 <dd>
                   <a class="about-link" @click="openUrl('https://github.com/skyjt/teahouse')">
                     github.com/skyjt/teahouse
@@ -1395,7 +1406,7 @@ async function confirmRemove(cidr: string): Promise<void> {
                 </dd>
               </div>
               <div class="about-row about-update-row" :class="'is-' + updateCheckKind">
-                <dt>内网更新</dt>
+                <dt>{{ tr('内网更新') }}</dt>
                 <dd aria-live="polite">
                   <div class="about-update-main">
                     <span class="about-update-status">
@@ -1404,7 +1415,7 @@ async function confirmRemove(cidr: string): Promise<void> {
                         <button
                           type="button"
                           class="about-help-trigger"
-                          aria-label="内网更新说明"
+                          :aria-label="tr('内网更新说明')"
                           aria-describedby="about-update-help"
                         >
                           ?
@@ -1436,7 +1447,7 @@ async function confirmRemove(cidr: string): Promise<void> {
               :aria-expanded="showAboutDetails"
               @click="showAboutDetails = !showAboutDetails"
             >
-              <span>{{ showAboutDetails ? '收起详细信息' : '更多信息' }}</span>
+              <span>{{ showAboutDetails ? tr('收起详细信息') : tr('更多信息') }}</span>
               <PantryIcon :name="showAboutDetails ? 'chevron-up' : 'chevron-down'" :size="15" />
             </button>
 
@@ -1454,12 +1465,12 @@ async function confirmRemove(cidr: string): Promise<void> {
                 <dd class="mono">{{ info?.node ?? '-' }}</dd>
               </div>
               <div class="about-row">
-                <dt>本机节点</dt>
+                <dt>{{ tr('本机节点') }}</dt>
                 <dd class="mono nodeid">{{ info?.nodeId ?? '-' }}</dd>
               </div>
               <div class="about-row">
-                <dt>Emoji 图形</dt>
-                <dd class="muted">Twemoji（本地打包 · CC-BY 4.0）</dd>
+                <dt>{{ tr('Emoji 图形') }}</dt>
+                <dd class="muted">{{ tr('Twemoji（本地打包 · CC-BY 4.0）') }}</dd>
               </div>
             </dl>
           </div>
@@ -1485,16 +1496,12 @@ async function confirmRemove(cidr: string): Promise<void> {
           <div class="port-warning-icon">
             <PantryIcon name="warning" :size="22" />
           </div>
-          <h2 id="port-warning-title">确认修改 {{ pendingPortLabel }} 端口？</h2>
-          <p id="port-warning-description">
-            UDP/TCP 端口共同用于局域网发现、消息和文件传输。修改后需要重启应用，并确保相关客户端、防火墙及网络策略使用匹配配置；配置不一致可能导致联系人无法发现、消息或文件无法送达。
-          </p>
-          <p id="port-warning-emphasis" class="port-warning-emphasis">
-            只有在你明确了解当前网络部署，并已准备同步调整相关配置时，才建议继续。
-          </p>
+          <h2 id="port-warning-title">{{ tr('确认修改 {0} 端口？', { 0: pendingPortLabel }) }}</h2>
+          <p id="port-warning-description">{{ tr('UDP/TCP 端口共同用于局域网发现、消息和文件传输。修改后需要重启应用，并确保相关客户端、防火墙及网络策略使用匹配配置；配置不一致可能导致联系人无法发现、消息或文件无法送达。') }}</p>
+          <p id="port-warning-emphasis" class="port-warning-emphasis">{{ tr('只有在你明确了解当前网络部署，并已准备同步调整相关配置时，才建议继续。') }}</p>
           <div class="port-warning-actions">
-            <NButton secondary @click="cancelPortEdit">取消</NButton>
-            <NButton type="error" @click="confirmPortEdit">确认修改</NButton>
+            <NButton secondary @click="cancelPortEdit">{{ tr('取消') }}</NButton>
+            <NButton type="error" @click="confirmPortEdit">{{ tr('确认修改') }}</NButton>
           </div>
         </section>
       </div>
@@ -1508,7 +1515,7 @@ async function confirmRemove(cidr: string): Promise<void> {
     <AvatarCropDialog
       v-if="avatarSource"
       :source="avatarSource"
-      title="调整个人头像"
+      :title="tr('调整个人头像')"
       :busy="avatarSaving"
       :error="avatarError"
       @close="avatarSource = null"
@@ -2991,4 +2998,8 @@ async function confirmRemove(cidr: string): Promise<void> {
     transform: none;
   }
 }
+</style>
+
+<style scoped>
+.language-select { width: 140px; flex-shrink: 0; }
 </style>

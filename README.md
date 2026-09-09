@@ -131,6 +131,8 @@ xattr -dr com.apple.quarantine /Applications/Teahouse.app
 
 想读懂代码结构、各模块职责、二次开发从哪下手，看 **[DEVELOPMENT.md](DEVELOPMENT.md)**——项目架构与扩展点都在里面。
 
+**界面语言**：在「设置 → 通用 → 语言 / Language」切换简体中文或 English，即时应用到所有窗口。新安装按系统首选语言初始化，已有用户保留中文。
+
 完整文档导航与英文版本见 **[docs/README.md](docs/README.md)**。
 
 如遇问题或有功能建议，请在 [Issues](https://github.com/skyjt/teahouse/issues) 提交。

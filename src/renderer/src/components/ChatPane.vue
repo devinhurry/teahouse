@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { tr } from '../utils/i18n'
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { usePeersStore } from '../stores/peers'
 import { useChatStore } from '../stores/chat'
@@ -153,11 +154,11 @@ watch(replyToId,
       /** 用 ID 解析引用展示元数据；查不到时降级为"原消息不可用" */
       const msg = await chatStore.getMessageById(newId)
       if (!msg) {
-        replyToMeta.value = {id: newId, senderName: '原消息不可用', text: ''}
+        replyToMeta.value = {id: newId, senderName: tr('原消息不可用'), text: ''}
         return
       }
       // 直接读取源消息自身的发送者 ID 和文本；原消息是普通消息时 replyTo 字段为空
-      const senderName = peersStore.nameOf(msg.senderId) || '未知成员'
+      const senderName = peersStore.nameOf(msg.senderId) || tr('未知成员')
       replyToMeta.value = {id: newId, senderName, text: String(msg.text ?? '')}
     },
     {immediate: true}
@@ -242,12 +243,12 @@ const isGroup = computed(() => chatStore.activeConv?.type === 'group')
 // 文件柜入口（决议 #273）：只在私聊出现；拿不到就明确说明原因，不给"点了没反应"的按钮
 const cabinetDisabledReason = computed(() => {
   const p = peer.value
-  if (!p) return '对方资料还没同步到'
-  if (!p.online) return '对方离线'
-  if (!(p.caps ?? []).includes(CAPS.fileCabinet)) return '对方版本不支持文件柜'
+  if (!p) return tr('对方资料还没同步到')
+  if (!p.online) return tr('对方离线')
+  if (!(p.caps ?? []).includes(CAPS.fileCabinet)) return tr('对方版本不支持文件柜')
   return ''
 })
-const cabinetTitle = computed(() => cabinetDisabledReason.value || '文件柜')
+const cabinetTitle = computed(() => cabinetDisabledReason.value || tr('文件柜'))
 
 function toggleCabinet(): void {
   if (cabinetDisabledReason.value) return
@@ -265,8 +266,8 @@ const peer = computed(() => {
   return peersStore.byId(conv.peerId) ?? null
 })
 const peerName = computed(() => {
-  if (isGroup.value) return group.value?.name ?? '讨论组'
-  return peer.value ? peer.value.remark || peer.value.nick : '未知节点'
+  if (isGroup.value) return group.value?.name ?? tr('讨论组')
+  return peer.value ? peer.value.remark || peer.value.nick : tr('未知节点')
 })
 const peerIp = computed(() => peer.value?.ip ?? '')
 const peerOnline = computed(() => peer.value?.online ?? false)
@@ -287,28 +288,28 @@ const canSendMedia = computed(() =>
 const canSendPk = computed(() =>
   isGroup.value ? canSend.value && onlineGroupRecipientCount.value > 0 : peerOnline.value
 )
-const pkDisabledReason = computed(() => 'PK 只能和在线的人玩')
+const pkDisabledReason = computed(() => tr('PK 只能和在线的人玩'))
 const pkToolTip = computed(() => (canSendPk.value ? 'PK' : pkDisabledReason.value))
 const nudgeRetryRemainingMs = computed(() => Math.max(0, nudgeRetryUntil.value - nudgeNow.value))
 const canSendNudge = computed(
   () => !isGroup.value && peerOnline.value && !nudgeSending.value && nudgeRetryRemainingMs.value <= 0
 )
 const nudgeToolTip = computed(() => {
-  if (isGroup.value) return '窗口震动仅支持私聊'
-  if (!peerOnline.value) return '对方离线，无法震动'
+  if (isGroup.value) return tr('窗口震动仅支持私聊')
+  if (!peerOnline.value) return tr('对方离线，无法震动')
   if (nudgeRetryRemainingMs.value > 0) {
-    return `${Math.ceil(nudgeRetryRemainingMs.value / 1000)} 秒后可再震动`
+    return tr('{0} 秒后可再震动', { 0: Math.ceil(nudgeRetryRemainingMs.value / 1000) })
   }
-  return '窗口震动'
+  return tr('窗口震动')
 })
 const mentionMembers = computed(() =>
   group.value ? group.value.members.filter((id) => id !== chatStore.selfId) : []
 )
 const inputPlaceholder = computed(() => {
-  if (!canSend.value) return '你已不在该讨论组，无法发言'
+  if (!canSend.value) return tr('你已不在该讨论组，无法发言')
   return settings.value?.sendKey === 'ctrlEnter'
-    ? '输入消息，Ctrl+Enter 发送，Enter 换行；可粘贴截图/文件'
-    : '输入消息，Enter 发送，Ctrl+Enter 换行；可粘贴截图/文件'
+    ? tr('输入消息，Ctrl+Enter 发送，Enter 换行；可粘贴截图/文件')
+    : tr('输入消息，Enter 发送，Ctrl+Enter 换行；可粘贴截图/文件')
 })
 const draftEmojiParts = computed(() => splitEmojiText(draft.value))
 // Win7 由系统字体 contenteditable 直接承载 Twemoji 原子节点，不再启用 textarea 镜像（决议 #262）。
@@ -344,20 +345,20 @@ function refreshInputFont(): void {
   inputFont.value = ta ? fontOfStyle(getComputedStyle(ta)) : ''
 }
 const historyResultMeta = computed(() => {
-  if (historySearching.value) return '搜索中'
-  return `${historyHits.value.length} 条结果`
+  if (historySearching.value) return tr('搜索中')
+  return tr('{0} 条结果', { 0: historyHits.value.length })
 })
-const HISTORY_WEEKDAYS = ['一', '二', '三', '四', '五', '六', '日']
+const HISTORY_WEEKDAYS = computed(() => ([tr('一'), tr('二'), tr('三'), tr('四'), tr('五'), tr('六'), tr('日')]))
 const historyDateRangeLabel = computed(() => {
   if (historyFrom.value && historyTo.value) {
-    return `${compactDateLabel(historyFrom.value)} 至 ${compactDateLabel(historyTo.value)}`
+    return tr('{0} 至 {1}', { 0: compactDateLabel(historyFrom.value), 1: compactDateLabel(historyTo.value) })
   }
-  if (historyFrom.value) return `${compactDateLabel(historyFrom.value)} 起`
-  return '全部日期'
+  if (historyFrom.value) return tr('{0} 起', { 0: compactDateLabel(historyFrom.value) })
+  return tr('全部日期')
 })
 const historyCalendarTitle = computed(() => {
   const base = monthDate(historyCalendarMonth.value)
-  return `${base.getFullYear()}年${base.getMonth() + 1}月`
+  return tr('{0}年{1}月', { 0: base.getFullYear(), 1: base.getMonth() + 1 })
 })
 const historyCalendarDays = computed<HistoryCalendarDay[]>(() => {
   const base = monthDate(historyCalendarMonth.value)
@@ -770,7 +771,7 @@ function clearHistoryDateRange(): void {
 }
 
 function peerOrgPath(p: PeerView): string {
-  return [p.company, p.dept, p.team].filter(Boolean).join(' / ') || '未分组'
+  return [p.company, p.dept, p.team].filter(Boolean).join(' / ') || tr('未分组')
 }
 
 function peerPlatformLabel(platform: PeerView['platform']): string {
@@ -780,8 +781,8 @@ function peerPlatformLabel(platform: PeerView['platform']): string {
 }
 
 function peerLastSeenLabel(p: PeerView): string {
-  if (p.online) return '当前在线'
-  if (!p.lastSeen) return '离线'
+  if (p.online) return tr('当前在线')
+  if (!p.lastSeen) return tr('离线')
   return listTime(p.lastSeen)
 }
 
@@ -866,7 +867,7 @@ function openHistoryViewer(hit: ConversationMessageHit): void {
 }
 
 function historySecondary(hit: ConversationMessageHit): string {
-  const who = hit.isMine ? '我' : peersStore.nameOf(hit.senderId)
+  const who = hit.isMine ? tr('我') : peersStore.nameOf(hit.senderId)
   return `${who} · ${listTime(hit.ts)}`
 }
 
@@ -1016,7 +1017,7 @@ async function sendClipboardImageFallback(event?: Event): Promise<boolean> {
     if (!bytes) return false
     event?.preventDefault()
     markClipboardPasteHandled()
-    await chatStore.sendImageBytes('粘贴图片.png', bytes)
+    await chatStore.sendImageBytes(tr('粘贴图片.png'), bytes)
     return true
   } finally {
     clipboardImagePasteBusy = false
@@ -1076,15 +1077,15 @@ async function sendNudge(): Promise<void> {
     if (result.reason === 'rate-limited') {
       const wait = result.retryAfterMs ?? NUDGE_MIN_INTERVAL_MS
       startNudgeRetry(wait)
-      setNudgeFeedback(`太频繁，${Math.ceil(wait / 1000)} 秒后再试`, 'warn')
+      setNudgeFeedback(tr('太频繁，{0} 秒后再试', { 0: Math.ceil(wait / 1000) }), 'warn')
       return
     }
     if (result.reason === 'undelivered') {
       startNudgeRetry(NUDGE_MIN_INTERVAL_MS)
-      setNudgeFeedback('对方暂时无响应', 'warn')
+      setNudgeFeedback(tr('对方暂时无响应'), 'warn')
       return
     }
-    setNudgeFeedback('当前会话无法震动', 'warn')
+    setNudgeFeedback(tr('当前会话无法震动'), 'warn')
   } finally {
     nudgeSending.value = false
   }
@@ -1180,12 +1181,12 @@ function mediaPeersSupportRecall(msg: MessageView): boolean {
 
 function mediaRecallDisabledReason(msg: MessageView): string {
   if (!isRecallableMediaKind(msg)) return ''
-  if (!mediaPeersSupportRecall(msg)) return '不可用'
+  if (!mediaPeersSupportRecall(msg)) return tr('不可用')
   if (msg.kind !== 'file') return ''
   const transfers = messageTransfers(msg)
-  if (transfers.length === 0) return '不可用'
+  if (transfers.length === 0) return tr('不可用')
   if (transfers.some((transfer) => transfer.status === 'done')) {
-    return msg.convId.startsWith('group:') ? '部分已接收' : '已接收'
+    return msg.convId.startsWith('group:') ? tr('部分已接收') : tr('已接收')
   }
   return ''
 }
@@ -1500,7 +1501,7 @@ async function sendTablePasteImage(): Promise<void> {
   draft.value = draftWithoutTablePaste(hint)
   clearTablePasteHint()
   void nextTick(focusInput)
-  await chatStore.sendImageBytes(`粘贴表格${payload.imageExt}`, bytes, payload.meta)
+  await chatStore.sendImageBytes(tr('粘贴表格{0}', { 0: payload.imageExt }), bytes, payload.meta)
 }
 
 /** Ctrl+V 粘贴：复制的文件按路径发（保留文件名/类型），截图位图按 bytes 发（F-MSG-3 / 决议 #76） */
@@ -1538,7 +1539,7 @@ async function onPaste(event: ClipboardEvent): Promise<void> {
     const imageItem = await readClipboardImageItem(data)
     if (imageItem) {
       event.preventDefault()
-      await chatStore.sendImageBytes(`粘贴图片${imageItem.ext}`, imageItem.bytes)
+      await chatStore.sendImageBytes(tr('粘贴图片{0}', { 0: imageItem.ext }), imageItem.bytes)
       return
     }
   }
@@ -1603,71 +1604,63 @@ async function onDrop(event: DragEvent): Promise<void> {
       >
         <header class="history-dialog-head">
           <span class="history-title-block">
-            <span id="history-search-title" class="history-title">搜索聊天记录</span>
+            <span id="history-search-title" class="history-title">{{ tr('搜索聊天记录') }}</span>
             <span class="history-subtitle">{{ peerName }}</span>
           </span>
-          <button type="button" class="history-close" aria-label="关闭搜索" @click="closeHistorySearch">
+          <button type="button" class="history-close" :aria-label="tr('关闭搜索')" @click="closeHistorySearch">
             <PantryIcon name="x" :size="16" />
           </button>
         </header>
         <div class="history-dialog-body">
           <aside class="history-sidebar">
             <label class="history-field">
-              <span>关键词</span>
+              <span>{{ tr('关键词') }}</span>
               <input
                 ref="historySearchInput"
                 v-model="historyQuery"
                 class="history-input"
                 maxlength="128"
-                placeholder="搜索当前会话"
+                :placeholder="tr('搜索当前会话')"
               />
             </label>
             <div class="history-field">
-              <span>类型</span>
+              <span>{{ tr('类型') }}</span>
               <div class="history-segments">
                 <button
                   type="button"
                   :class="{ selected: historyKind === 'all' }"
                   @click="historyKind = 'all'"
-                >
-                  全部
-                </button>
+                >{{ tr('全部') }}</button>
                 <button
                   type="button"
                   :class="{ selected: historyKind === 'image' }"
                   @click="historyKind = 'image'"
-                >
-                  图片
-                </button>
+                >{{ tr('图片') }}</button>
                 <button
                   type="button"
                   :class="{ selected: historyKind === 'file' }"
                   @click="historyKind = 'file'"
-                >
-                  文件
-                </button>
+                >{{ tr('文件') }}</button>
               </div>
             </div>
             <div class="history-field">
               <span class="history-field-head">
-                <span>日期</span>
+                <span>{{ tr('日期') }}</span>
                 <button
                   v-if="historyFrom || historyTo"
                   type="button"
                   class="history-date-clear"
                   @click="clearHistoryDateRange"
-                >
-                  清除
-                </button>
+                >{{ tr('清除') }}</button>
               </span>
               <span class="history-range-label">{{ historyDateRangeLabel }}</span>
               <div class="history-calendar">
                 <div class="history-calendar-head">
-                  <button type="button" aria-label="上个月" @click="moveHistoryMonth(-1)">
+                  <button type="button" :aria-label="tr('上个月')" @click="moveHistoryMonth(-1)">
                     <PantryIcon name="chevron-left" :size="14" />
                   </button>
                   <span>{{ historyCalendarTitle }}</span>
-                  <button type="button" aria-label="下个月" @click="moveHistoryMonth(1)">
+                  <button type="button" :aria-label="tr('下个月')" @click="moveHistoryMonth(1)">
                     <PantryIcon name="chevron-right" :size="14" />
                   </button>
                 </div>
@@ -1693,16 +1686,16 @@ async function onDrop(event: DragEvent): Promise<void> {
                 </div>
               </div>
             </div>
-            <button type="button" class="history-clear" @click="clearHistorySearch">清空筛选</button>
+            <button type="button" class="history-clear" @click="clearHistorySearch">{{ tr('清空筛选') }}</button>
           </aside>
           <main class="history-results-panel">
             <div class="history-results-head">
-              <span>结果</span>
+              <span>{{ tr('结果') }}</span>
               <span>{{ historyResultMeta }}</span>
             </div>
             <div class="history-results">
-              <div v-if="historySearching" class="history-empty">搜索中...</div>
-              <div v-else-if="historyHits.length === 0" class="history-empty">没有找到相关记录</div>
+              <div v-if="historySearching" class="history-empty">{{ tr('搜索中...') }}</div>
+              <div v-else-if="historyHits.length === 0" class="history-empty">{{ tr('没有找到相关记录') }}</div>
               <template v-else>
                 <button
                   v-for="hit in historyHits"
@@ -1718,7 +1711,7 @@ async function onDrop(event: DragEvent): Promise<void> {
                       v-if="historyImageTransferId(hit)"
                       v-cached-image="{ transferId: historyImageTransferId(hit) }"
                       class="history-thumb"
-                      alt="[图片]"
+                      :alt="tr('[图片]')"
                       loading="lazy"
                       decoding="async"
                       @error="markHistoryImageBroken(hit, $event)"
@@ -1747,14 +1740,14 @@ async function onDrop(event: DragEvent): Promise<void> {
         </div>
       </section>
     </div>
-    <div v-if="dragging" class="drop-mask">松手发送给 {{ peerName }}</div>
+    <div v-if="dragging" class="drop-mask">{{ tr('松手发送给 {0}', { 0: peerName }) }}</div>
     <header class="head">
       <div v-if="!isGroup && peer" ref="peerProfileScope" class="peer-profile-scope">
         <button
           class="title-button"
           :class="{ active: showPeerProfile }"
           type="button"
-          aria-label="查看对方资料"
+          :aria-label="tr('查看对方资料')"
           @click.stop="togglePeerProfile"
         >
           <AvatarMark
@@ -1768,7 +1761,7 @@ async function onDrop(event: DragEvent): Promise<void> {
             <span class="title">{{ peerName }}</span>
             <span class="subtitle">
               <span class="state-word" :class="{ on: peerOnline }">{{
-                peerOnline ? '在线' : '离线'
+                peerOnline ? tr('在线') : tr('离线')
               }}</span>
               <template v-if="peerIp"> · {{ peerIp }}</template>
             </span>
@@ -1778,7 +1771,7 @@ async function onDrop(event: DragEvent): Promise<void> {
           v-if="showPeerProfile"
           class="peer-profile-popover"
           role="dialog"
-          aria-label="对方详细信息"
+          :aria-label="tr('对方详细信息')"
           @click.stop
           @keydown.esc.stop="closePeerProfile"
         >
@@ -1792,42 +1785,42 @@ async function onDrop(event: DragEvent): Promise<void> {
             />
             <span class="profile-title">
               <strong>{{ peer.remark || peer.nick }}</strong>
-              <small v-if="peer.remark">昵称：{{ peer.nick }}</small>
+              <small v-if="peer.remark">{{ tr('昵称：{0}', { 0: peer.nick }) }}</small>
               <span class="profile-status" :class="{ on: peer.online }">
                 <span class="profile-status-dot"></span>
-                {{ peer.online ? '在线' : '离线' }}
+                {{ peer.online ? tr('在线') : tr('离线') }}
               </span>
             </span>
           </header>
           <div class="profile-rows">
-            <div class="profile-row"><span>组织</span><strong>{{ peerOrgPath(peer) }}</strong></div>
-            <div class="profile-row"><span>IP</span><strong>{{ peer.ip || '未知' }}</strong></div>
-            <div class="profile-row"><span>主机</span><strong>{{ peer.host || '未知' }}</strong></div>
+            <div class="profile-row"><span>{{ tr('组织') }}</span><strong>{{ peerOrgPath(peer) }}</strong></div>
+            <div class="profile-row"><span>IP</span><strong>{{ peer.ip || tr('未知') }}</strong></div>
+            <div class="profile-row"><span>{{ tr('主机') }}</span><strong>{{ peer.host || tr('未知') }}</strong></div>
             <div class="profile-row">
-              <span>平台</span><strong>{{ peerPlatformLabel(peer.platform) }}</strong>
+              <span>{{ tr('平台') }}</span><strong>{{ peerPlatformLabel(peer.platform) }}</strong>
             </div>
             <div class="profile-row">
-              <span>最近</span><strong>{{ peerLastSeenLabel(peer) }}</strong>
+              <span>{{ tr('最近') }}</span><strong>{{ peerLastSeenLabel(peer) }}</strong>
             </div>
           </div>
           <label class="profile-remark">
-            <span>备注</span>
+            <span>{{ tr('备注') }}</span>
             <input
               v-model="peerProfileRemark"
               maxlength="32"
-              placeholder="仅自己可见"
+              :placeholder="tr('仅自己可见')"
               @keydown.enter="savePeerProfileRemark"
             />
           </label>
           <div class="profile-actions">
-            <span class="profile-save-state">{{ peerProfileSaved ? '已保存' : '' }}</span>
+            <span class="profile-save-state">{{ peerProfileSaved ? tr('已保存') : '' }}</span>
             <button
               type="button"
               class="profile-save"
               :disabled="peerProfileSaving"
               @click="savePeerProfileRemark"
             >
-              {{ peerProfileSaving ? '保存中' : '保存备注' }}
+              {{ peerProfileSaving ? tr('保存中') : tr('保存备注') }}
             </button>
           </div>
         </section>
@@ -1842,7 +1835,7 @@ async function onDrop(event: DragEvent): Promise<void> {
           <span class="title">{{ peerName }}</span>
         </span>
       </template>
-      <span v-if="isGroup" class="state">{{ group?.members.length ?? 0 }} 人</span>
+      <span v-if="isGroup" class="state">{{ tr('{0} 人', { 0: group?.members.length ?? 0 }) }}</span>
       <span class="head-spacer"></span>
       <button
         v-if="!isGroup"
@@ -1854,7 +1847,7 @@ async function onDrop(event: DragEvent): Promise<void> {
       >
         <PantryIcon name="folder" :size="17" />
       </button>
-      <button v-if="isGroup" class="head-btn" title="成员" @click="showMembers = !showMembers">
+      <button v-if="isGroup" class="head-btn" :title="tr('成员')" @click="showMembers = !showMembers">
         <PantryIcon name="users" :size="17" />
       </button>
     </header>
@@ -1878,7 +1871,7 @@ async function onDrop(event: DragEvent): Promise<void> {
     <div class="body-wrap">
       <div ref="scrollArea" class="msgs" @scroll="onScroll">
       <div ref="msgsContent" class="msgs-content">
-      <div v-if="loadingEarlier" class="sep">加载更早的消息…</div>
+      <div v-if="loadingEarlier" class="sep">{{ tr('加载更早的消息…') }}</div>
       <MessageRow
         v-for="(msg, i) in chatStore.activeMessages"
         :key="msg.id"
@@ -1907,7 +1900,7 @@ async function onDrop(event: DragEvent): Promise<void> {
           v-if="chatStore.viewingHistory || farFromBottom"
           class="jump-latest"
           type="button"
-          title="回到最新消息"
+          :title="tr('回到最新消息')"
           @click="jumpToLatest"
         >
           <PantryIcon name="chevron-down" :size="20" />
@@ -1921,16 +1914,16 @@ async function onDrop(event: DragEvent): Promise<void> {
       :style="{ left: `${msgMenu.x}px`, top: `${msgMenu.y}px` }"
       @click.stop
     >
-      <button v-if="canCopyMessage(msgMenu.msg)" @click="copySelectedMessage">复制</button>
-      <button v-if="canForwardMessage(msgMenu.msg)" @click="forwardSelectedMessage">转发</button>
-      <button v-if="canQuoteMessage(msgMenu.msg) && isGroup && !msgMenu.msg.isMine" @click="quoteSelectedMessage">引用回复</button>
+      <button v-if="canCopyMessage(msgMenu.msg)" @click="copySelectedMessage">{{ tr('复制') }}</button>
+      <button v-if="canForwardMessage(msgMenu.msg)" @click="forwardSelectedMessage">{{ tr('转发') }}</button>
+      <button v-if="canQuoteMessage(msgMenu.msg) && isGroup && !msgMenu.msg.isMine" @click="quoteSelectedMessage">{{ tr('引用回复') }}</button>
       <button
         v-if="isRecallableKind(msgMenu.msg)"
         class="danger recall-action"
         :disabled="recallButtonDisabled"
         @click="recallSelectedMessage"
       >
-        <span>撤回</span>
+        <span>{{ tr('撤回') }}</span>
         <span class="recall-action-meta" :class="{ 'is-urgent': recallButtonUrgent }">
           {{ recallButtonMeta }}
         </span>
@@ -1942,8 +1935,8 @@ async function onDrop(event: DragEvent): Promise<void> {
       <div
         class="input-resizer"
         role="separator"
-        aria-label="拖动调整输入框高度"
-        title="拖动调整输入框高度"
+        :aria-label="tr('拖动调整输入框高度')"
+        :title="tr('拖动调整输入框高度')"
         @pointerdown="startInputResize"
       >
         <span class="input-resizer-grip"></span>
@@ -1956,11 +1949,11 @@ async function onDrop(event: DragEvent): Promise<void> {
             @select="insertEmoji"
             @sticker="sendStickerById"
           />
-          <span class="tool-wrap" data-tip="表情">
+          <span class="tool-wrap" :data-tip="tr('表情')">
             <button
               class="tool"
               type="button"
-              aria-label="表情"
+              :aria-label="tr('表情')"
               :disabled="!canSend"
               @click="showEmoji = !showEmoji"
             >
@@ -1973,20 +1966,20 @@ async function onDrop(event: DragEvent): Promise<void> {
             <button
               type="button"
               :disabled="!canSendPk"
-              :title="canSendPk ? '猜拳' : pkDisabledReason"
+              :title="canSendPk ? tr('猜拳') : pkDisabledReason"
               @click="sendPk('rps')"
             >
               <span class="pk-pop-window"><PantryIcon name="pk-rps" :size="22" /></span>
-              <span>猜拳</span>
+              <span>{{ tr('猜拳') }}</span>
             </button>
             <button
               type="button"
               :disabled="!canSendPk"
-              :title="canSendPk ? '骰子' : pkDisabledReason"
+              :title="canSendPk ? tr('骰子') : pkDisabledReason"
               @click="sendPk('dice')"
             >
               <span class="pk-pop-window"><PantryIcon name="pk-dice" :size="22" /></span>
-              <span>骰子</span>
+              <span>{{ tr('骰子') }}</span>
             </button>
           </div>
           <span class="tool-wrap" :data-tip="pkToolTip">
@@ -2007,72 +2000,70 @@ async function onDrop(event: DragEvent): Promise<void> {
           <button
             class="tool"
             type="button"
-            aria-label="窗口震动"
+            :aria-label="tr('窗口震动')"
             :disabled="!canSendNudge"
             @click="sendNudge"
           >
             <PantryIcon name="nudge" :size="18" />
           </button>
         </span>
-        <span class="tool-wrap" data-tip="截图">
+        <span class="tool-wrap" :data-tip="tr('截图')">
           <button
             class="tool"
             type="button"
-            aria-label="截图（Ctrl/Cmd+Alt+A）"
+            :aria-label="tr('截图（Ctrl/Cmd+Alt+A）')"
             @click="window_startCapture"
           >
             <PantryIcon name="scissors" :size="18" />
           </button>
         </span>
-        <span class="tool-wrap" data-tip="发送图片">
+        <span class="tool-wrap" :data-tip="tr('发送图片')">
           <button
             class="tool"
             type="button"
-            aria-label="发送图片"
+            :aria-label="tr('发送图片')"
             :disabled="!canSendMedia"
             @click="sendImage"
           >
             <PantryIcon name="image" :size="18" />
           </button>
         </span>
-        <span class="tool-wrap" data-tip="发送文件">
+        <span class="tool-wrap" :data-tip="tr('发送文件')">
           <button
             class="tool"
             type="button"
-            aria-label="发送文件"
+            :aria-label="tr('发送文件')"
             :disabled="!canSendMedia"
             @click="sendFiles(false)"
           >
             <PantryIcon name="file" :size="18" />
           </button>
         </span>
-        <span class="tool-wrap" data-tip="发送文件夹">
+        <span class="tool-wrap" :data-tip="tr('发送文件夹')">
           <button
             class="tool"
             type="button"
-            aria-label="发送文件夹"
+            :aria-label="tr('发送文件夹')"
             :disabled="!canSendMedia"
             @click="sendFiles(true)"
           >
             <PantryIcon name="folder" :size="18" />
           </button>
         </span>
-        <span v-if="isGroup && canSend && onlineGroupRecipientCount === 0" class="tool-hint">
-          群成员离线，无法发送图片/文件
-        </span>
-        <span v-else-if="isGroup" class="tool-hint">仅在线群成员可接收图片/文件</span>
-        <span v-else-if="!peerOnline" class="tool-hint">对方离线，无法发送图片/文件</span>
+        <span v-if="isGroup && canSend && onlineGroupRecipientCount === 0" class="tool-hint">{{ tr('群成员离线，无法发送图片/文件') }}</span>
+        <span v-else-if="isGroup" class="tool-hint">{{ tr('仅在线群成员可接收图片/文件') }}</span>
+        <span v-else-if="!peerOnline" class="tool-hint">{{ tr('对方离线，无法发送图片/文件') }}</span>
         <span v-if="nudgeFeedback" class="nudge-feedback" :class="nudgeFeedback.kind">
           {{ nudgeFeedback.text }}
         </span>
         <span class="toolbar-spacer"></span>
         <span class="history-search-scope">
-          <span class="tool-wrap" data-tip="历史搜索">
+          <span class="tool-wrap" :data-tip="tr('历史搜索')">
             <button
               class="tool"
               :class="{ active: showHistorySearch }"
               type="button"
-              aria-label="历史搜索"
+              :aria-label="tr('历史搜索')"
               @click="toggleHistorySearch"
             >
               <PantryIcon name="search" :size="18" />
@@ -2098,26 +2089,24 @@ async function onDrop(event: DragEvent): Promise<void> {
           type="button"
           :disabled="!canSendMedia"
           @click="sendTablePasteImage"
-        >
-          发送为图片
-        </button>
+        >{{ tr('发送为图片') }}</button>
         <button
           class="table-paste-hint-close"
           type="button"
-          aria-label="忽略"
+          :aria-label="tr('忽略')"
           @click="clearTablePasteHint"
         >
           <PantryIcon name="x" :size="14" />
         </button>
       </div>
       <div v-if="replyToId" class="reply-preview">
-        <span class="reply-preview-label">引用回复</span>
-        <span class="reply-preview-sender">{{ replyToMeta?.senderName ?? '原消息不可用' }}</span>
+        <span class="reply-preview-label">{{ tr('引用回复') }}</span>
+        <span class="reply-preview-sender">{{ replyToMeta?.senderName ?? tr('原消息不可用') }}</span>
         <span class="reply-preview-text">{{ replyToMeta?.text ?? '' }}</span>
         <button
           class="reply-preview-close"
           type="button"
-          aria-label="取消引用"
+          :aria-label="tr('取消引用')"
           @click="replyToId = null"
         >
           <PantryIcon name="x" :size="12" />
@@ -2180,13 +2169,9 @@ async function onDrop(event: DragEvent): Promise<void> {
       </div>
       <div class="input-bar">
         <span v-if="draftBytes > 600" class="counter" :class="{ over: overLimit }">
-          {{ draftBytes }} / {{ TEXT_TCP_LIMIT }} 字节{{
-            overLimit ? '（文本过长）' : overUdpLimit ? '（将通过 TCP 发送）' : ''
-          }}
+          {{ tr('{0} / {1} 字节{2}', { 0: draftBytes, 1: TEXT_TCP_LIMIT, 2: overLimit ? tr('（文本过长）') : overUdpLimit ? tr('（将通过 TCP 发送）') : '' }) }}
         </span>
-        <button class="send" :disabled="!draft.trim() || overLimit || !canSend" @click="send">
-          发送
-        </button>
+        <button class="send" :disabled="!draft.trim() || overLimit || !canSend" @click="send">{{ tr('发送') }}</button>
       </div>
     </footer>
   </div>

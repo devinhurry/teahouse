@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { tr } from '../utils/i18n'
 import { computed, ref } from 'vue'
 import { usePeersStore } from '../stores/peers'
 import { useChatStore } from '../stores/chat'
@@ -46,7 +47,7 @@ async function sendAll(): Promise<void> {
     if (view) ok += 1
   }
   sending.value = false
-  result.value = `已发送 ${ok}/${ids.length}`
+  result.value = tr('已发送 {0}/{1}', { 0: ok, 1: ids.length })
   if (ids[0]) await chatStore.openPeer(ids[0])
 }
 </script>
@@ -54,29 +55,25 @@ async function sendAll(): Promise<void> {
 <template>
   <div class="mask" @click.self="emit('close')">
     <div class="dialog">
-      <h3>群发消息</h3>
+      <h3>{{ tr('群发消息') }}</h3>
       <div class="pick-list">
         <label v-for="p in peersStore.peers" :key="p.nodeId" class="pick">
           <input type="checkbox" :checked="picked.has(p.nodeId)" @change="toggle(p.nodeId)" />
           <span class="dot" :class="p.online ? 'on' : 'off'"></span>
           <span class="nm">{{ p.remark || p.nick }}</span>
-          <em v-if="!p.online" class="off-tag">离线</em>
+          <em v-if="!p.online" class="off-tag">{{ tr('离线') }}</em>
         </label>
-        <p v-if="peersStore.peers.length === 0" class="empty">还没有发现任何节点</p>
+        <p v-if="peersStore.peers.length === 0" class="empty">{{ tr('还没有发现任何节点') }}</p>
       </div>
       <textarea v-model="text" class="message" maxlength="4096"></textarea>
       <div class="foot">
-        <span class="count">
-          已选 {{ picked.size }} 人
-          <template v-if="bytes > 600">
-            · {{ bytes }} / {{ TEXT_TCP_LIMIT }} 字节
-            <template v-if="overUdpLimit && !overLimit">· TCP</template>
+        <span class="count">{{ tr('已选 {0} 人', { 0: picked.size }) }}<template v-if="bytes > 600">{{ tr('· {0} / {1} 字节', { 0: bytes, 1: TEXT_TCP_LIMIT }) }}<template v-if="overUdpLimit && !overLimit">· TCP</template>
           </template>
         </span>
-        <span class="result" :class="{ over: overLimit }">{{ overLimit ? '文本过长' : result }}</span>
-        <button class="ghost" @click="emit('close')">取消</button>
+        <span class="result" :class="{ over: overLimit }">{{ overLimit ? tr('文本过长') : result }}</span>
+        <button class="ghost" @click="emit('close')">{{ tr('取消') }}</button>
         <button class="primary" :disabled="!canSend" @click="sendAll">
-          {{ sending ? '发送中' : '发送' }}
+          {{ sending ? tr('发送中') : tr('发送') }}
         </button>
       </div>
     </div>

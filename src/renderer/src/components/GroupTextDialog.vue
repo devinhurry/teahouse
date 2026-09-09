@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { tr } from '../utils/i18n'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { GroupView } from '../../../shared/ipc'
 import PantryIcon from './PantryIcon.vue'
@@ -25,13 +26,13 @@ const textareaRef = ref<HTMLTextAreaElement | null>(null)
 let previousFocus: HTMLElement | null = null
 
 const isDescription = computed(() => props.kind === 'description')
-const title = computed(() => (isDescription.value ? '设置群简介' : '设置群公告'))
+const title = computed(() => (isDescription.value ? tr('设置群简介') : tr('设置群公告')))
 const hint = computed(() =>
   isDescription.value
-    ? '群简介将在群信息面板中展示，最多 200 字；留空可清空'
-    : '群公告将在群信息面板中展示，最多 1,024 字；留空可清空'
+    ? tr('群简介将在群信息面板中展示，最多 200 字；留空可清空')
+    : tr('群公告将在群信息面板中展示，最多 1,024 字；留空可清空')
 )
-const placeholder = computed(() => (isDescription.value ? '请输入群简介' : '请输入群公告'))
+const placeholder = computed(() => (isDescription.value ? tr('请输入群简介') : tr('请输入群公告')))
 const maxLength = computed(() => (isDescription.value ? 200 : 1024))
 const inputId = computed(() => (isDescription.value ? 'group-description-input' : 'group-announce-input'))
 const normalizedValue = computed(() => value.value.trim())
@@ -96,8 +97,8 @@ onBeforeUnmount(() => {
           <h3 id="group-text-dialog-title">{{ title }}</h3>
           <button
             class="close-btn"
-            title="关闭"
-            aria-label="关闭"
+            :title="tr('关闭')"
+            :aria-label="tr('关闭')"
             :disabled="busy"
             @click="requestClose"
           >
@@ -123,9 +124,9 @@ onBeforeUnmount(() => {
           <div v-if="error" class="feedback" aria-live="polite">{{ error }}</div>
         </div>
         <div class="footer">
-          <button class="ghost" :disabled="busy" @click="requestClose">取消</button>
+          <button class="ghost" :disabled="busy" @click="requestClose">{{ tr('取消') }}</button>
           <button class="primary" :disabled="!canSave" @click="save">
-            {{ busy ? '保存中…' : '保存' }}
+            {{ busy ? tr('保存中…') : tr('保存') }}
           </button>
         </div>
       </section>

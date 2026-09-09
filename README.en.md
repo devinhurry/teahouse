@@ -57,6 +57,7 @@ Moving a file or sending a short message inside an office network should be effo
 - **Shared file cabinet** — Publish a local folder with per-peer read/write permissions, browse colleagues' cabinets, and download or upload through the third main-window tab.
 - **LAN-only operation** — Runtime communication stays on the local network. The app contains no telemetry, cloud synchronization, CDN assets, or Internet update check.
 - **Legacy and domestic platform coverage** — The same codebase supports Windows 7 SP1, Debian 10, UOS 20, modern Linux distributions, and macOS.
+- **Interface language** — Choose Simplified Chinese or English in Settings → General → Language. Changes apply to all windows immediately. New installs use Chinese for Chinese system languages and English otherwise; existing users keep Chinese.
 
 ## Platform support
 

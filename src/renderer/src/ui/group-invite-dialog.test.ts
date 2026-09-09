@@ -38,14 +38,14 @@ describe('群成员批量邀请弹窗（决议 #242）', () => {
     expect(pickerSource).toContain('class="chip"')
     expect(pickerSource).toContain('v-for="peer in selectedPeers"')
     expect(pickerSource).not.toContain('selectedPeers.slice')
-    expect(pickerSource).toContain('class="off-tag">离线')
+    expect(pickerSource).toContain("class=\"off-tag\">{{ tr('离线') }}")
     expect(pickerSource).toContain(':disabled="atPickCap && !selectedIds.includes(p.nodeId)"')
   })
 
   it('一次提交全部成员，失败时保留选择并展示行内提示', () => {
     expect(dialogSource).toContain("kind: 'invite'")
     expect(dialogSource).toContain('memberIds: [...selectedIds.value]')
-    expect(dialogSource).toContain("error.value = '添加失败，请稍后重试'")
+    expect(dialogSource).toContain("error.value = tr('添加失败，请稍后重试')")
     expect(dialogSource).not.toContain('selectedIds.value = []')
     expect(dialogSource).toContain('aria-live="polite"')
   })

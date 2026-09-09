@@ -1,7 +1,8 @@
+import { tr } from '../i18n'
 import { posix, win32 } from 'node:path'
 import type { MessageView } from '../shared/ipc'
 import { emojiSafePlainText } from '../shared/compat-emoji'
-import { pkPreview } from '../shared/pk'
+import { pkLabel } from '../shared/pk'
 
 export interface NotificationIconPathInput {
   platform: NodeJS.Platform
@@ -35,10 +36,10 @@ export function notificationIconPath(input: NotificationIconPathInput): string |
 }
 
 export function messageNotificationPreview(msg: MessageView, hidePreview: boolean): string {
-  if (hidePreview) return '收到一条新消息'
+  if (hidePreview) return tr('收到一条新消息')
 
   const raw = mediaPreviewText(msg) ?? msg.text
-  const clean = emojiSafePlainText(raw.trim()).trim() || '收到一条新消息'
+  const clean = emojiSafePlainText(raw.trim(), tr('[表情]')).trim() || tr('收到一条新消息')
   return clean.length > MAX_NOTIFICATION_BODY_CHARS
     ? `${clean.slice(0, MAX_NOTIFICATION_BODY_CHARS)}…`
     : clean
@@ -55,21 +56,21 @@ export function incomingNotificationOptions(input: IncomingNotificationInput): I
     }
   }
 
-  const groupName = input.groupName?.trim() || '讨论组'
+  const groupName = input.groupName?.trim() || tr('讨论组')
   return {
-    title: input.msg.mentioned ? `${groupName}（有人@你）` : groupName,
+    title: input.msg.mentioned ? tr('{0}（有人@你）', { 0: groupName }) : groupName,
     body: input.hidePreview ? previewText : `${input.senderNick}：${previewText}`,
     silent: input.silent
   }
 }
 
 function mediaPreviewText(msg: MessageView): string | null {
-  if (msg.kind === 'image') return '[图片]'
-  if (msg.kind === 'sticker') return '[表情]'
-  if (msg.kind === 'pk') return msg.pkRef ? pkPreview(msg.pkRef.game) : msg.text
+  if (msg.kind === 'image') return tr('[图片]')
+  if (msg.kind === 'sticker') return tr('[表情]')
+  if (msg.kind === 'pk') return msg.pkRef ? `[PK] ${tr(pkLabel(msg.pkRef.game))}` : msg.text
   if (msg.kind === 'file') {
     const name = msg.fileRef?.name?.trim()
-    if (name) return msg.fileRef?.dir ? `[文件夹] ${name}` : `[文件] ${name}`
+    if (name) return msg.fileRef?.dir ? tr('[文件夹] {0}', { 0: name }) : tr('[文件] {0}', { 0: name })
   }
   return null
 }

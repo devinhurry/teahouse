@@ -1,3 +1,4 @@
+import { tr } from './i18n'
 import type { MessageView } from '../../../shared/ipc'
 
 export interface TextPart {
@@ -19,8 +20,8 @@ export function messageStatusHint(
 ): string {
   if (kind === 'file') return ''
   if (status === 'recalled') return ''
-  if (status === 'queued') return '对方上线后自动送达'
-  if (status === 'failed') return '发送失败，点击重发'
+  if (status === 'queued') return tr('对方上线后自动送达')
+  if (status === 'failed') return tr('发送失败，点击重发')
   return ''
 }
 

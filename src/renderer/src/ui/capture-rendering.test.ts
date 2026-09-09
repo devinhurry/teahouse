@@ -42,7 +42,7 @@ describe('截图框选软渲染约束（决议 #221）', () => {
     expect(source).toContain('ctx.font = `700 ${Math.round(18 * scaleY)}px sans-serif`')
   })
 
-  it('工具条功能按钮只显示本地线性图标并保留中文语义', () => {
+  it('工具条功能按钮只显示本地线性图标并保留可翻译语义', () => {
     const icons = [
       'capture-select',
       'capture-rect',
@@ -55,8 +55,8 @@ describe('截图框选软渲染约束（决议 #221）', () => {
     ]
     for (const name of icons) expect(source).toContain(`<PantryIcon name="${name}"`)
     for (const label of ['重新框选', '矩形', '箭头', '文字', '马赛克', '发送', '复制', '取消']) {
-      expect(source).toContain(`data-tooltip="${label}"`)
-      expect(source).toContain(`aria-label="${label}"`)
+      expect(source).toContain(`:data-tooltip="tr('${label}')"`)
+      expect(source).toContain(`:aria-label="tr('${label}')"`)
     }
     expect(source.match(/data-tooltip=/g)).toHaveLength(8)
     expect(source.match(/:aria-pressed=/g)).toHaveLength(5)

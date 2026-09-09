@@ -37,7 +37,7 @@ describe('表格粘贴不再自动发送（Issue #19 / 决议 #270）', () => {
   it('提示条给出忽略入口并在对方离线时禁用发图片', () => {
     expect(source).toContain('class="table-paste-hint"')
     expect(source).toContain('aria-live="polite"')
-    expect(source).toContain('aria-label="忽略"')
+    expect(source).toContain(":aria-label=\"tr('忽略')\"")
     expect(source).toContain('@click="clearTablePasteHint"')
     expect(source).toContain(':disabled="!canSendMedia"')
     expect(source).toContain("<PantryIcon name=\"table\" :size=\"16\" />")

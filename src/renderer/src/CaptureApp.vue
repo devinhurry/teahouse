@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { tr } from './utils/i18n'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import PantryIcon from './components/PantryIcon.vue'
 import { mapCaptureRectToImage } from './utils/capture-crop'
@@ -521,7 +522,7 @@ function drawMosaic(
         ref="textEditorEl"
         class="text-editor"
         type="text"
-        aria-label="输入标注文字"
+        :aria-label="tr('输入标注文字')"
         autocomplete="off"
         :maxlength="CAPTURE_TEXT_MAX_LENGTH"
         :style="textEditorStyle"
@@ -551,8 +552,8 @@ function drawMosaic(
           type="button"
           class="btn tool"
           :class="{ on: tool === 'select' }"
-          data-tooltip="重新框选"
-          aria-label="重新框选"
+          :data-tooltip="tr('重新框选')"
+          :aria-label="tr('重新框选')"
           :aria-pressed="tool === 'select'"
           @click="setTool('select')"
         >
@@ -562,8 +563,8 @@ function drawMosaic(
           type="button"
           class="btn tool"
           :class="{ on: tool === 'rect' }"
-          data-tooltip="矩形"
-          aria-label="矩形"
+          :data-tooltip="tr('矩形')"
+          :aria-label="tr('矩形')"
           :aria-pressed="tool === 'rect'"
           @click="setTool('rect')"
         >
@@ -573,8 +574,8 @@ function drawMosaic(
           type="button"
           class="btn tool"
           :class="{ on: tool === 'arrow' }"
-          data-tooltip="箭头"
-          aria-label="箭头"
+          :data-tooltip="tr('箭头')"
+          :aria-label="tr('箭头')"
           :aria-pressed="tool === 'arrow'"
           @click="setTool('arrow')"
         >
@@ -584,8 +585,8 @@ function drawMosaic(
           type="button"
           class="btn tool"
           :class="{ on: tool === 'text' }"
-          data-tooltip="文字"
-          aria-label="文字"
+          :data-tooltip="tr('文字')"
+          :aria-label="tr('文字')"
           :aria-pressed="tool === 'text'"
           @click="setTool('text')"
         >
@@ -595,8 +596,8 @@ function drawMosaic(
           type="button"
           class="btn tool"
           :class="{ on: tool === 'mosaic' }"
-          data-tooltip="马赛克"
-          aria-label="马赛克"
+          :data-tooltip="tr('马赛克')"
+          :aria-label="tr('马赛克')"
           :aria-pressed="tool === 'mosaic'"
           @click="setTool('mosaic')"
         >
@@ -606,8 +607,8 @@ function drawMosaic(
         <button
           type="button"
           class="btn primary"
-          data-tooltip="发送"
-          aria-label="发送"
+          :data-tooltip="tr('发送')"
+          :aria-label="tr('发送')"
           @click="confirm(true)"
         >
           <PantryIcon name="send" :size="17" />
@@ -615,8 +616,8 @@ function drawMosaic(
         <button
           type="button"
           class="btn"
-          data-tooltip="复制"
-          aria-label="复制"
+          :data-tooltip="tr('复制')"
+          :aria-label="tr('复制')"
           @click="confirm(false)"
         >
           <PantryIcon name="copy" :size="17" />
@@ -624,15 +625,15 @@ function drawMosaic(
         <button
           type="button"
           class="btn cancel-btn"
-          data-tooltip="取消"
-          aria-label="取消"
+          :data-tooltip="tr('取消')"
+          :aria-label="tr('取消')"
           @click="cancel"
         >
           <PantryIcon name="x" :size="17" />
         </button>
       </div>
     </template>
-    <div v-else class="hint">拖拽框选区域 · Esc 取消</div>
+    <div v-else class="hint">{{ tr('拖拽框选区域 · Esc 取消') }}</div>
   </div>
 </template>
 

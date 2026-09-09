@@ -1,3 +1,4 @@
+import { tr } from './i18n'
 import { AVATAR_MAX_BYTES, AVATAR_OUTPUT_SIZE } from '../../../shared/protocol'
 
 export interface AvatarCropState {
@@ -100,17 +101,17 @@ export async function renderAvatarWebp(
   canvas.height = AVATAR_OUTPUT_SIZE
   try {
     const context = canvas.getContext('2d', { willReadFrequently: true })
-    if (!context) throw new Error('无法创建图片处理画布')
+    if (!context) throw new Error(tr('无法创建图片处理画布'))
     context.drawImage(bitmap, 0, 0)
     const pixels = context.getImageData(0, 0, AVATAR_OUTPUT_SIZE, AVATAR_OUTPUT_SIZE).data
-    if (!hasVisibleAvatarPixels(pixels)) throw new Error('裁剪结果为空，请重新选择图片')
+    if (!hasVisibleAvatarPixels(pixels)) throw new Error(tr('裁剪结果为空，请重新选择图片'))
     for (const quality of [0.86, 0.78, 0.68, 0.56, 0.44, 0.32]) {
       const blob = await canvasBlob(canvas, quality)
       if (blob?.type === 'image/webp' && blob.size <= AVATAR_MAX_BYTES) {
         return blob.arrayBuffer()
       }
     }
-    throw new Error('图片细节过多，请调整裁剪范围后重试')
+    throw new Error(tr('图片细节过多，请调整裁剪范围后重试'))
   } finally {
     bitmap.close()
   }

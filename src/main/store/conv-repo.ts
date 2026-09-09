@@ -1,3 +1,4 @@
+import { messagePreview } from './msg-repo'
 import type DatabaseT from 'better-sqlite3'
 import type { ConversationView } from '../../shared/ipc'
 
@@ -12,6 +13,8 @@ export interface ConvRow {
   mentioned: number
   draft: string
   preview: string | null
+  preview_kind?: string | null
+  preview_ref?: string | null
 }
 
 /** 单聊会话 id 确定性生成：免查表、renderer 可直接反解 peerId */
@@ -25,6 +28,12 @@ export function groupConvId(groupId: string): string {
 
 /** 行 → 渲染层视图（chat / files / groups 服务共用） */
 export function convRowToView(row: ConvRow): ConversationView {
+  // 会话摘要只携带展示必需字段，避免把图片表格文本等大字段广播给每个会话。
+  const preview = row.preview_kind ? messagePreview({
+    kind: row.preview_kind, content: row.preview ?? '',
+    file_ref: ['file', 'pk', 'system'].includes(row.preview_kind) ? row.preview_ref ?? null : null
+  }) : undefined
+  if (preview?.fileRef && preview.kind !== 'file') preview.fileRef = undefined
   return {
     id: row.id,
     type: row.type === 'group' ? 'group' : 'single',
@@ -34,7 +43,8 @@ export function convRowToView(row: ConvRow): ConversationView {
     pinned: row.pinned !== 0,
     muted: row.muted !== 0,
     mentioned: row.mentioned !== 0,
-    preview: row.preview ?? ''
+    preview: row.preview ?? '',
+    ...(preview ? { previewMessage: { ...preview, fileRef: preview.fileRef ? { name: preview.fileRef.name, dir: preview.fileRef.dir } : undefined } } : {})
   }
 }
 
@@ -69,19 +79,17 @@ export class ConvRepo {
     this.removeStmt = db.prepare('DELETE FROM conversations WHERE id = ?')
     // preview 取该会话最新一条消息正文（会话列表摘要）
     this.listStmt = db.prepare(`
-      SELECT c.*, (
-        SELECT m.content FROM messages m
-        WHERE m.conv_id = c.id ORDER BY m.seq DESC LIMIT 1
-      ) AS preview
-      FROM conversations c
+      SELECT c.*, m.content AS preview, m.kind AS preview_kind, m.file_ref AS preview_ref
+      FROM conversations c LEFT JOIN messages m ON m.id = (
+        SELECT latest.id FROM messages latest WHERE latest.conv_id = c.id ORDER BY latest.seq DESC LIMIT 1
+      )
       ORDER BY c.pinned DESC, c.last_ts DESC
     `)
     this.getStmt = db.prepare(`
-      SELECT c.*, (
-        SELECT m.content FROM messages m
-        WHERE m.conv_id = c.id ORDER BY m.seq DESC LIMIT 1
-      ) AS preview
-      FROM conversations c WHERE c.id = ?
+      SELECT c.*, m.content AS preview, m.kind AS preview_kind, m.file_ref AS preview_ref
+      FROM conversations c LEFT JOIN messages m ON m.id = (
+        SELECT latest.id FROM messages latest WHERE latest.conv_id = c.id ORDER BY latest.seq DESC LIMIT 1
+      ) WHERE c.id = ?
     `)
   }
 

@@ -1,3 +1,4 @@
+import { tr } from '../../i18n'
 import { app, BrowserWindow } from 'electron'
 import { join } from 'node:path'
 import { resolveDevRendererUrl } from '../util/renderer-url'
@@ -24,7 +25,7 @@ function viewerHash(transferId: string, name: string): string {
 
 export function openImageViewerWindow(transferId: string, name: string): void {
   const hash = viewerHash(transferId, name)
-  const title = name.trim() ? name.trim().slice(0, 120) : '图片'
+  const title = name.trim() ? name.trim().slice(0, 120) : tr('图片')
 
   if (win && !win.isDestroyed()) {
     win.setTitle(title)

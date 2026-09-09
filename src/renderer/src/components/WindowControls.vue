@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { tr } from '../utils/i18n'
 // 沉浸式无标题栏（决议 #49）：Windows / Linux 右上角自绘窗口控制按钮。
 // macOS 使用系统红绿灯（hiddenInset），本组件自动不渲染。
 // 关闭走 window.close()，主窗复用「关闭进托盘」逻辑；最小化/最大化经 IPC。
@@ -45,8 +46,8 @@ function close(): void {
       v-if="buttons === 'all'"
       type="button"
       class="ctrl"
-      title="最小化"
-      aria-label="最小化"
+      :title="tr('最小化')"
+      :aria-label="tr('最小化')"
       @click="minimize"
     >
       <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
@@ -57,8 +58,8 @@ function close(): void {
       v-if="buttons === 'all'"
       type="button"
       class="ctrl"
-      :title="maximized ? '还原' : '最大化'"
-      :aria-label="maximized ? '还原' : '最大化'"
+      :title="maximized ? tr('还原') : tr('最大化')"
+      :aria-label="maximized ? tr('还原') : tr('最大化')"
       @click="toggleMaximize"
     >
       <svg v-if="maximized" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
@@ -74,7 +75,7 @@ function close(): void {
         <rect x="1" y="1" width="8" height="8" rx="0.6" fill="none" stroke="currentColor" stroke-width="1.2" />
       </svg>
     </button>
-    <button type="button" class="ctrl close" title="关闭" aria-label="关闭" @click="close">
+    <button type="button" class="ctrl close" :title="tr('关闭')" :aria-label="tr('关闭')" @click="close">
       <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
         <path d="M1.5 1.5l7 7M8.5 1.5l-7 7" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" />
       </svg>

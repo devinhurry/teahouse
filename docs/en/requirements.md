@@ -70,12 +70,12 @@ P0 is required for a usable product, P1 is expected for a complete release, and 
 | Desktop | Tray, notifications, startup, shortcuts | P0/P1 | v0.1+ |
 | Updates | Peer-to-peer update discovery and package transfer | P1 | v0.27+, incomplete end-to-end |
 | Settings | Profile, avatar, ports, destinations, theme, shortcuts | P0/P1 | v0.1+ |
-| Application language | Simplified Chinese default | P2 | Future |
+| Application language | Simplified Chinese / English, immediate switching | P1 | v0.57.0 |
 | Documentation language | Simplified Chinese and English | Maintained | v0.51.1 |
 | Compatibility | Neiwangtong compatibility mode | Paused | Unscheduled (#199) |
 | Local API | Optional local automation/AI interface | P2 | Future research |
 
-The v0.51.1 localization applies to repository and release documentation. Application UI localization remains a separate P2 product decision.
+The v0.51.1 localization applies to repository and release documentation. Application UI localization is delivered separately in v0.57.0 (#307).
 
 ## 6. Functional requirements
 
@@ -183,10 +183,14 @@ The complete append-only ledger is maintained in [requirements.md §9](../requir
 - Target-platform smoke testing on Win7 x64/ia32, UOS/Debian x64/arm64, and macOS.
 - macOS universal/Intel packaging evaluation.
 - Neiwangtong compatibility remains paused and must not enter implementation without a new product decision.
-- Application UI localization remains a future P2 decision; repository documentation now supports English independently.
+- Application UI supports Chinese and English as of v0.57.0 (#307); repository documentation supports English independently.
 
 ## 10. Translation maintenance
 
 Update this document whenever the current functional or non-functional requirements change. Preserve decision numbers and update the canonical Chinese decision ledger first. Historical superseded experiments may remain summarized in English when they no longer affect current behavior.
 
 - **2026-09-07, decision #306, v0.56.2:** built-in emoji retain transparent Unicode text beneath local SVGs for native selection/copy without extra line breaks; whole-message copy retains original text. The Win7 editor copies/cuts its existing logical draft selection. Linux text inputs use native insertText only for explicit NumLock-on Numpad digits or matching navigation keys, without modifiers or composition; consume events only on successful insertion. Readonly/disabled fields, NumLock-off navigation, Windows and macOS keep native behavior. No protocol, schema, IPC or dependency changes. UOS native event-chain verification remains a target-platform check.
+
+## Decision #307: Application languages (v0.57.0)
+
+Ship Simplified Chinese and English with an immediate, persistent language selector. New installations use Chinese on Chinese systems and English otherwise; existing configurations keep Chinese. Cover every application window, tray, notification and application-owned prompt. Preserve user content and historical system messages. New system messages include local template metadata for rendering in either language. All resources remain offline.

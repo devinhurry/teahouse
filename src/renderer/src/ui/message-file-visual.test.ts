@@ -37,10 +37,10 @@ describe('消息与文件视觉统一', () => {
   })
 
   it('发送方主动取消使用独立的灰色状态，不落入失败重发入口', () => {
-    expect(fileCardSource).toContain("props.msg.status === 'canceled' ? '发送取消' : '已取消'")
-    expect(fileCardSource).toContain("if (props.msg.status === 'canceled') return '发送取消'")
+    expect(fileCardSource).toContain("props.msg.status === 'canceled' ? tr('发送取消') : tr('已取消')")
+    expect(fileCardSource).toContain("if (props.msg.status === 'canceled') return tr('发送取消')")
     expect(messageSource).toContain("v-else-if=\"props.msg.status === 'canceled'\"")
-    expect(messageSource).toContain('title="发送取消"')
+    expect(messageSource).toContain(":title=\"tr('发送取消')\"")
     expect(ruleBody(messageSource, '.status .canceled')).toContain('color: var(--text-3)')
   })
 
@@ -51,9 +51,9 @@ describe('消息与文件视觉统一', () => {
   })
 
   it('普通文件到期按收发方向显示独立提示', () => {
-    expect(fileCardSource).toContain("t.direction === 'out' ? '发送已到期' : '文件已过期'")
-    expect(fileCardSource).toContain("if (expired > 0 && !active) return '发送已到期'")
-    expect(settingsSource).toContain("view.direction === 'out' ? '发送已到期' : '文件已过期'")
+    expect(fileCardSource).toContain("t.direction === 'out' ? tr('发送已到期') : tr('文件已过期')")
+    expect(fileCardSource).toContain("if (expired > 0 && !active) return tr('发送已到期')")
+    expect(settingsSource).toContain("view.direction === 'out' ? tr('发送已到期') : tr('文件已过期')")
   })
 
   it('文件类型 atlas 是 512 RGBA PNG', () => {

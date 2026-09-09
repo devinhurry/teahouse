@@ -23,8 +23,8 @@ describe('端口修改风险确认', () => {
     expect(settingsSource).toContain('只有在你明确了解当前网络部署')
     expect(settingsSource).toContain("querySelector<HTMLButtonElement>(")
     expect(settingsSource).toContain("'.port-warning-actions button'")
-    expect(settingsSource).toContain('<NButton secondary @click="cancelPortEdit">取消</NButton>')
-    expect(settingsSource).toContain('<NButton type="error" @click="confirmPortEdit">确认修改</NButton>')
+    expect(settingsSource).toContain("<NButton secondary @click=\"cancelPortEdit\">{{ tr('取消') }}</NButton>")
+    expect(settingsSource).toContain("<NButton type=\"error\" @click=\"confirmPortEdit\">{{ tr('确认修改') }}</NButton>")
   })
 
   it('确认后仅解锁当前端口并自动聚焦全选', () => {

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { tr } from '../utils/i18n'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { NButton, NSelect } from 'naive-ui'
 import { SHARE_DIR_MAX_ENTRIES, type ShareMode } from '../../../shared/protocol'
@@ -21,14 +22,14 @@ const menu = ref<{ open: boolean; x: number; y: number }>({ open: false, x: 0, y
 const listEl = ref<HTMLElement | null>(null)
 
 const peerTitle = computed(() =>
-  cabinet.activePeer ? `${cabinetPeerName(cabinet.activePeer)}的文件柜` : '文件柜'
+  cabinet.activePeer ? tr('{0}的文件柜', { 0: cabinetPeerName(cabinet.activePeer) }) : tr('文件柜')
 )
 
 const peerSubtitle = computed(() => {
   const p = cabinet.activePeer
   if (!p) return ''
-  if (!p.online) return '离线'
-  return [p.dept, p.ip].filter((s) => (s ?? '').length > 0).join(' · ') || '在线'
+  if (!p.online) return tr('离线')
+  return [p.dept, p.ip].filter((s) => (s ?? '').length > 0).join(' · ') || tr('在线')
 })
 
 function formatTime(ms: number): string {
@@ -41,7 +42,7 @@ function formatTime(ms: number): string {
   const mi = String(d.getMinutes()).padStart(2, '0')
   if (d.getFullYear() !== now.getFullYear()) return `${d.getFullYear()}-${mm}-${dd}`
   const sameDay = d.getMonth() === now.getMonth() && d.getDate() === now.getDate()
-  return sameDay ? `今天 ${hh}:${mi}` : `${mm}-${dd} ${hh}:${mi}`
+  return sameDay ? tr('今天 {0}:{1}', { 0: hh, 1: mi }) : `${mm}-${dd} ${hh}:${mi}`
 }
 
 function onRowClick(index: number, event: MouseEvent): void {
@@ -106,9 +107,9 @@ async function copyName(): Promise<void> {
   if (!name) return
   try {
     await navigator.clipboard.writeText(name)
-    cabinet.flashToast('文件名已复制')
+    cabinet.flashToast(tr('文件名已复制'))
   } catch {
-    cabinet.flashToast('复制失败')
+    cabinet.flashToast(tr('复制失败'))
   }
 }
 
@@ -172,40 +173,38 @@ onUnmounted(() => {
     <header class="head">
       <span class="head-icon"><PantryIcon name="cabinet" :size="18" /></span>
       <span class="head-txt">
-        <span class="head-title">我的文件柜</span>
+        <span class="head-title">{{ tr('我的文件柜') }}</span>
         <span class="head-sub">
-          {{ cabinet.shareRoot ? '正在共享 · 同事按下面的权限访问' : '还没有开启，同事看不到任何内容' }}
+          {{ cabinet.shareRoot ? tr('正在共享 · 同事按下面的权限访问') : tr('还没有开启，同事看不到任何内容') }}
         </span>
       </span>
-      <NButton v-if="cabinet.shareRoot" quaternary size="small" @click="cabinet.clearShareRoot()">
-        停止共享
-      </NButton>
+      <NButton v-if="cabinet.shareRoot" quaternary size="small" @click="cabinet.clearShareRoot()">{{ tr('停止共享') }}</NButton>
     </header>
 
     <div v-if="!cabinet.shareRoot" class="guide">
       <span class="guide-icon"><PantryIcon name="cabinet" :size="24" /></span>
-      <strong>你还没有开文件柜</strong>
-      <p>选一个目录，同事就能自己来取里面的文件，不用你一个个发。</p>
+      <strong>{{ tr('你还没有开文件柜') }}</strong>
+      <p>{{ tr('选一个目录，同事就能自己来取里面的文件，不用你一个个发。') }}</p>
       <p v-if="cabinet.shareRootError" class="guide-error">{{ cabinet.shareRootError }}</p>
-      <NButton type="primary" @click="cabinet.pickShareRoot()">选择共享目录</NButton>
+      <NButton type="primary" @click="cabinet.pickShareRoot()">{{ tr('选择共享目录') }}</NButton>
     </div>
 
     <div v-else class="page">
       <section class="card">
-        <h3>共享目录</h3>
+        <h3>{{ tr('共享目录') }}</h3>
         <div class="path-row">
           <span class="path-icon"><PantryIcon name="folder" :size="15" /></span>
           <span class="path" :title="cabinet.shareRoot">{{ cabinet.shareRoot }}</span>
-          <NButton size="tiny" secondary @click="cabinet.revealShareRoot()">打开</NButton>
-          <NButton size="tiny" secondary @click="cabinet.pickShareRoot()">更改…</NButton>
+          <NButton size="tiny" secondary @click="cabinet.revealShareRoot()">{{ tr('打开') }}</NButton>
+          <NButton size="tiny" secondary @click="cabinet.pickShareRoot()">{{ tr('更改…') }}</NButton>
         </div>
         <p v-if="cabinet.shareRootError" class="card-error">{{ cabinet.shareRootError }}</p>
-        <p class="card-hint">同事只能看到这个目录里面的内容，看不到它在你磁盘上的位置。</p>
+        <p class="card-hint">{{ tr('同事只能看到这个目录里面的内容，看不到它在你磁盘上的位置。') }}</p>
       </section>
 
       <section class="card">
-        <h3>默认权限</h3>
-        <div class="segment" role="radiogroup" aria-label="文件柜默认权限">
+        <h3>{{ tr('默认权限') }}</h3>
+        <div class="segment" role="radiogroup" :aria-label="tr('文件柜默认权限')">
           <button
             v-for="opt in SHARE_MODE_OPTIONS"
             :key="opt.value"
@@ -222,13 +221,11 @@ onUnmounted(() => {
       </section>
 
       <section class="card">
-        <h3>
-          单独设过的同事
-          <em v-if="cabinet.grants.length">{{ cabinet.grants.length }} 人</em>
+        <h3>{{ tr('单独设过的同事') }}<em v-if="cabinet.grants.length">{{ tr('{0} 人', { 0: cabinet.grants.length }) }}</em>
         </h3>
-        <div v-if="cabinet.grants.length === 0" class="card-empty">所有同事都按默认权限</div>
+        <div v-if="cabinet.grants.length === 0" class="card-empty">{{ tr('所有同事都按默认权限') }}</div>
         <div v-else class="grant-table">
-          <div class="grant-row grant-head"><span>同事</span><span>权限</span><span></span></div>
+          <div class="grant-row grant-head"><span>{{ tr('同事') }}</span><span>{{ tr('权限') }}</span><span></span></div>
           <div v-for="g in cabinet.grants" :key="g.nodeId" class="grant-row">
             <span class="grant-peer">
               <AvatarMark
@@ -239,7 +236,7 @@ onUnmounted(() => {
                 :offline="!g.online"
               />
               <span :class="{ offline: !g.online }">
-                {{ g.name }}{{ g.online ? '' : '（离线）' }}
+                {{ g.name }}{{ g.online ? '' : tr('（离线）') }}
               </span>
             </span>
             <NSelect
@@ -251,7 +248,7 @@ onUnmounted(() => {
             <button
               type="button"
               class="icon-btn danger"
-              title="移除例外（恢复跟随默认权限）"
+              :title="tr('移除例外（恢复跟随默认权限）')"
               @click="cabinet.removeGrant(g.nodeId)"
             >
               <PantryIcon name="x" :size="13" />
@@ -265,17 +262,15 @@ onUnmounted(() => {
             filterable
             clearable
             size="small"
-            placeholder="搜索同事，为 TA 单独设置权限"
+            :placeholder="tr('搜索同事，为 TA 单独设置权限')"
           />
-          <NButton size="small" :disabled="!newGrantId" @click="addGrant">添加</NButton>
+          <NButton size="small" :disabled="!newGrantId" @click="addGrant">{{ tr('添加') }}</NButton>
         </div>
       </section>
 
       <section class="card">
-        <h3>最近有人放进来</h3>
-        <div v-if="cabinet.recentUploads.length === 0" class="card-empty">
-          还没有人往你的文件柜放东西
-        </div>
+        <h3>{{ tr('最近有人放进来') }}</h3>
+        <div v-if="cabinet.recentUploads.length === 0" class="card-empty">{{ tr('还没有人往你的文件柜放东西') }}</div>
         <div v-else class="feed">
           <button
             v-for="item in cabinet.recentUploads"
@@ -291,13 +286,12 @@ onUnmounted(() => {
               :name="item.name"
             />
             <span class="feed-txt">
-              <b>{{ item.name }}</b> 放进来 {{ item.fileCount }} 个文件 ·
-              {{ formatBytes(item.totalSize) }}
+              <b>{{ item.name }}</b>{{ tr('放进来 {0} 个文件 · {1}', { 0: item.fileCount, 1: formatBytes(item.totalSize) }) }}
             </span>
             <time>{{ formatTime(item.ts) }}</time>
           </button>
         </div>
-        <p class="card-hint">点任意一条打开本机对应目录。别人只是浏览、下载不会出现在这里。</p>
+        <p class="card-hint">{{ tr('点任意一条打开本机对应目录。别人只是浏览、下载不会出现在这里。') }}</p>
       </section>
     </div>
 
@@ -331,20 +325,18 @@ onUnmounted(() => {
         <span class="head-title">{{ peerTitle }}</span>
         <span class="head-sub">
           {{ peerSubtitle }}
-          <template v-if="!cabinet.failReason && cabinet.total > 0">
-            · 共 {{ cabinet.total }} 项
-          </template>
+          <template v-if="!cabinet.failReason && cabinet.total > 0">{{ tr('· 共 {0} 项', { 0: cabinet.total }) }}</template>
         </span>
       </span>
       <span v-if="!cabinet.failReason" class="perm" :class="cabinet.perm">
-        {{ cabinet.canUpload ? '可上传' : '只读' }}
+        {{ cabinet.canUpload ? tr('可上传') : tr('只读') }}
       </span>
-      <span class="seg-view" role="group" aria-label="视图">
+      <span class="seg-view" role="group" :aria-label="tr('视图')">
         <button
           type="button"
           :class="{ on: cabinet.viewMode === 'list' }"
-          title="详情列表"
-          aria-label="详情列表"
+          :title="tr('详情列表')"
+          :aria-label="tr('详情列表')"
           @click="cabinet.setViewMode('list')"
         >
           <PantryIcon name="list" :size="15" />
@@ -352,8 +344,8 @@ onUnmounted(() => {
         <button
           type="button"
           :class="{ on: cabinet.viewMode === 'grid' }"
-          title="网格"
-          aria-label="网格"
+          :title="tr('网格')"
+          :aria-label="tr('网格')"
           @click="cabinet.setViewMode('grid')"
         >
           <PantryIcon name="grid" :size="15" />
@@ -362,7 +354,7 @@ onUnmounted(() => {
       <button
         type="button"
         class="icon-btn quiet"
-        title="刷新"
+        :title="tr('刷新')"
         :disabled="cabinet.loading"
         @click="cabinet.load(cabinet.path)"
       >
@@ -374,7 +366,7 @@ onUnmounted(() => {
       <button
         type="button"
         class="icon-btn"
-        title="返回上级"
+        :title="tr('返回上级')"
         :disabled="cabinet.crumbs.length < 2 || cabinet.loading"
         @click="cabinet.goUp()"
       >
@@ -396,18 +388,16 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <div v-if="cabinet.loading" class="state">正在读取…</div>
+    <div v-if="cabinet.loading" class="state">{{ tr('正在读取…') }}</div>
     <div v-else-if="cabinet.failReason" class="state error">
       <span class="state-icon"><PantryIcon name="info" :size="21" /></span>
       <strong>{{ cabinet.failText }}</strong>
-      <NButton size="small" @click="cabinet.load(cabinet.path)">重试</NButton>
+      <NButton size="small" @click="cabinet.load(cabinet.path)">{{ tr('重试') }}</NButton>
     </div>
     <div v-else-if="cabinet.entries.length === 0" class="state">
       <span class="state-icon"><PantryIcon name="folder" :size="21" /></span>
-      <strong>这个文件夹是空的</strong>
-      <small v-if="cabinet.canUpload">
-        可以把文件拖进来，会放到 TA 柜子里以你命名的文件夹。
-      </small>
+      <strong>{{ tr('这个文件夹是空的') }}</strong>
+      <small v-if="cabinet.canUpload">{{ tr('可以把文件拖进来，会放到 TA 柜子里以你命名的文件夹。') }}</small>
     </div>
     <template v-else>
       <div v-if="cabinet.viewMode === 'list'" class="cols">
@@ -415,9 +405,9 @@ onUnmounted(() => {
           <input type="checkbox" :checked="cabinet.allLoadedPicked" @change="cabinet.toggleAll()" />
           <span>{{ cabinet.pickAllLabel }}</span>
         </label>
-        <span class="c-name">名称</span>
-        <span class="c-size">大小</span>
-        <span class="c-time">修改时间</span>
+        <span class="c-name">{{ tr('名称') }}</span>
+        <span class="c-size">{{ tr('大小') }}</span>
+        <span class="c-time">{{ tr('修改时间') }}</span>
       </div>
       <div
         v-if="cabinet.viewMode === 'list'"
@@ -425,7 +415,7 @@ onUnmounted(() => {
         class="rows"
         tabindex="0"
         role="listbox"
-        aria-label="文件列表"
+        :aria-label="tr('文件列表')"
         @scroll="onScroll"
         @keydown="onKeydown"
       >
@@ -444,7 +434,7 @@ onUnmounted(() => {
             class="row-pick"
             type="checkbox"
             :checked="cabinet.picked.has(entry.name)"
-            :aria-label="`勾选 ${entry.name}`"
+            :aria-label="tr('勾选 {0}', { 0: entry.name })"
             @click.stop
             @change="cabinet.togglePick(entry.name)"
           />
@@ -453,14 +443,12 @@ onUnmounted(() => {
           <span class="row-size">{{ entry.isDir ? '—' : formatBytes(entry.size) }}</span>
           <span class="row-time">{{ formatTime(entry.mtime) }}</span>
         </div>
-        <div v-if="cabinet.loadingMore" class="tail">正在加载更多…</div>
+        <div v-if="cabinet.loadingMore" class="tail">{{ tr('正在加载更多…') }}</div>
         <div v-else-if="cabinet.moreFailReason" class="tail fail">
           <span>{{ cabinet.moreFailText }}</span>
-          <button type="button" class="link" @click="cabinet.loadMore()">重试</button>
+          <button type="button" class="link" @click="cabinet.loadMore()">{{ tr('重试') }}</button>
         </div>
-        <div v-else-if="cabinet.truncated" class="tail">
-          目录内容过多，仅显示前 {{ SHARE_DIR_MAX_ENTRIES }} 项
-        </div>
+        <div v-else-if="cabinet.truncated" class="tail">{{ tr('目录内容过多，仅显示前 {0} 项', { 0: SHARE_DIR_MAX_ENTRIES }) }}</div>
       </div>
 
       <div
@@ -468,7 +456,7 @@ onUnmounted(() => {
         class="grid"
         tabindex="0"
         role="listbox"
-        aria-label="文件网格"
+        :aria-label="tr('文件网格')"
         @scroll="onScroll"
         @keydown="onKeydown"
       >
@@ -487,14 +475,12 @@ onUnmounted(() => {
           <FileTypeIcon class="card-icon" :name="entry.name" :dir="entry.isDir" :size="42" />
           <span class="card-name">{{ entry.name }}</span>
         </div>
-        <div v-if="cabinet.loadingMore" class="tail grid-tail">正在加载更多…</div>
+        <div v-if="cabinet.loadingMore" class="tail grid-tail">{{ tr('正在加载更多…') }}</div>
         <div v-else-if="cabinet.moreFailReason" class="tail fail grid-tail">
           <span>{{ cabinet.moreFailText }}</span>
-          <button type="button" class="link" @click="cabinet.loadMore()">重试</button>
+          <button type="button" class="link" @click="cabinet.loadMore()">{{ tr('重试') }}</button>
         </div>
-        <div v-else-if="cabinet.truncated" class="tail grid-tail">
-          目录内容过多，仅显示前 {{ SHARE_DIR_MAX_ENTRIES }} 项
-        </div>
+        <div v-else-if="cabinet.truncated" class="tail grid-tail">{{ tr('目录内容过多，仅显示前 {0} 项', { 0: SHARE_DIR_MAX_ENTRIES }) }}</div>
       </div>
     </template>
 
@@ -509,17 +495,13 @@ onUnmounted(() => {
         <span v-if="cabinet.transferActive" class="progress-num">
           {{ cabinet.progressPercent }}%
         </span>
-        <button v-if="cabinet.transferActive" type="button" class="link" @click="cabinet.cancelTransfer()">
-          取消
-        </button>
+        <button v-if="cabinet.transferActive" type="button" class="link" @click="cabinet.cancelTransfer()">{{ tr('取消') }}</button>
         <button
           v-else-if="cabinet.transfer?.status === 'done' && cabinet.transfer.direction === 'in'"
           type="button"
           class="link"
           @click="cabinet.revealTransfer()"
-        >
-          打开位置
-        </button>
+        >{{ tr('打开位置') }}</button>
       </div>
       <div v-if="cabinet.transferActive" class="bar">
         <span class="bar-fill" :style="{ width: `${cabinet.progressPercent}%` }"></span>
@@ -529,48 +511,35 @@ onUnmounted(() => {
     <footer class="foot">
       <div class="foot-row">
         <span class="foot-sum">
-          <template v-if="cabinet.pickedCount > 0">
-            已选 <b>{{ cabinet.pickedCount }}</b> 项<template v-if="cabinet.pickedSize > 0">
+          <template v-if="cabinet.pickedCount > 0">{{ tr('已选') }}<b>{{ cabinet.pickedCount }}</b>{{ tr('项') }}<template v-if="cabinet.pickedSize > 0">
               · {{ formatBytes(cabinet.pickedSize) }}</template>
           </template>
-          <template v-else-if="!cabinet.failReason">单击选中，双击进文件夹</template>
+          <template v-else-if="!cabinet.failReason">{{ tr('单击选中，双击进文件夹') }}</template>
         </span>
         <span class="foot-actions">
           <template v-if="cabinet.pickedCount > 0">
-            <NButton size="small" secondary :disabled="cabinet.downloading" @click="cabinet.download(true)">
-              另存为…
-            </NButton>
+            <NButton size="small" secondary :disabled="cabinet.downloading" @click="cabinet.download(true)">{{ tr('另存为…') }}</NButton>
             <NButton
               size="small"
               type="primary"
               :disabled="cabinet.downloading"
               @click="cabinet.download(false)"
-            >
-              下载 {{ cabinet.pickedCount }} 项
-            </NButton>
+            >{{ tr('下载 {0} 项', { 0: cabinet.pickedCount }) }}</NButton>
           </template>
           <template v-else-if="cabinet.canUpload">
-            <NButton size="small" secondary :disabled="cabinet.uploading" @click="cabinet.upload(true)">
-              上传文件夹
-            </NButton>
+            <NButton size="small" secondary :disabled="cabinet.uploading" @click="cabinet.upload(true)">{{ tr('上传文件夹') }}</NButton>
             <NButton
               size="small"
               type="primary"
               :disabled="cabinet.uploading"
               @click="cabinet.upload(false)"
-            >
-              上传到 TA 的柜子
-            </NButton>
+            >{{ tr('上传到 TA 的柜子') }}</NButton>
           </template>
         </span>
       </div>
       <p class="foot-hint">
-        <template v-if="cabinet.canUpload">
-          上传的内容会放进 TA 柜子里的「{{ cabinet.selfName }}」文件夹，不影响 TA 已有的文件；下载默认落到「文件保存位置」下的「文件柜-对方名称」。
-        </template>
-        <template v-else>
-          下载默认落到「文件保存位置」下的「文件柜-对方名称」，也可以「另存为」自选目录。
-        </template>
+        <template v-if="cabinet.canUpload">{{ tr('上传的内容会放进 TA 柜子里的「{0}」文件夹，不影响 TA 已有的文件；下载默认落到「文件保存位置」下的「文件柜-对方名称」。', { 0: cabinet.selfName }) }}</template>
+        <template v-else>{{ tr('下载默认落到「文件保存位置」下的「文件柜-对方名称」，也可以「另存为」自选目录。') }}</template>
       </p>
     </footer>
 
@@ -581,9 +550,9 @@ onUnmounted(() => {
       :style="{ left: `${menu.x}px`, top: `${menu.y}px` }"
       role="menu"
     >
-      <button type="button" role="menuitem" @click="menuDownload(false)">下载</button>
-      <button type="button" role="menuitem" @click="menuDownload(true)">另存为…</button>
-      <button type="button" role="menuitem" @click="copyName">复制文件名</button>
+      <button type="button" role="menuitem" @click="menuDownload(false)">{{ tr('下载') }}</button>
+      <button type="button" role="menuitem" @click="menuDownload(true)">{{ tr('另存为…') }}</button>
+      <button type="button" role="menuitem" @click="copyName">{{ tr('复制文件名') }}</button>
     </div>
 
     <Transition name="cab-toast">

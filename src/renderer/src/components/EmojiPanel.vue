@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { tr } from '../utils/i18n'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useStickersStore } from '../stores/stickers'
 import { COMPAT_EMOJIS } from '../utils/compat-emoji'
@@ -13,7 +14,7 @@ const props = defineProps<{ stickerEnabled: boolean }>()
 
 const tab = ref<'emoji' | 'sticker'>('emoji')
 const stickers = useStickersStore()
-const importLabel = ref('导入')
+const importLabel = ref(tr('导入'))
 let importLabelTimer: ReturnType<typeof setTimeout> | null = null
 
 onMounted(() => void stickers.init())
@@ -25,10 +26,10 @@ async function importStickers(): Promise<void> {
   tab.value = 'sticker'
   const result = await stickers.importFiles()
   if (!result) return
-  importLabel.value = result.added === 0 ? '导入失败' : result.added < result.selected ? '部分失败' : '已导入'
+  importLabel.value = result.added === 0 ? tr('导入失败') : result.added < result.selected ? tr('部分失败') : tr('已导入')
   if (importLabelTimer) clearTimeout(importLabelTimer)
   importLabelTimer = setTimeout(() => {
-    importLabel.value = '导入'
+    importLabel.value = tr('导入')
     importLabelTimer = null
   }, 2000)
 }
@@ -38,19 +39,17 @@ async function importStickers(): Promise<void> {
   <div class="panel">
     <div class="tabs">
       <button :class="{ on: tab === 'emoji' }" @click="tab = 'emoji'">
-        <PantryIcon name="smile" :size="15" />表情
-      </button>
+        <PantryIcon name="smile" :size="15" />{{ tr('表情') }}</button>
       <button :class="{ on: tab === 'sticker' }" @click="tab = 'sticker'">
-        <PantryIcon name="sticker" :size="15" />表情包
-      </button>
+        <PantryIcon name="sticker" :size="15" />{{ tr('表情包') }}</button>
       <button
         class="import-button"
         type="button"
         :disabled="stickers.importing"
-        :aria-label="stickers.importing ? '正在导入表情包' : '导入表情包'"
+        :aria-label="stickers.importing ? tr('正在导入表情包') : tr('导入表情包')"
         @click="importStickers"
       >
-        <PantryIcon name="plus" :size="14" />{{ stickers.importing ? '导入中…' : importLabel }}
+        <PantryIcon name="plus" :size="14" />{{ stickers.importing ? tr('导入中…') : importLabel }}
       </button>
     </div>
 
@@ -59,7 +58,7 @@ async function importStickers(): Promise<void> {
         v-for="item in COMPAT_EMOJIS"
         :key="item.char"
         class="emo"
-        :title="item.label"
+        :title="tr(item.label)"
         @click="emit('select', item.char)"
       >
         <CompatEmoji :emoji="item.char" />
@@ -72,20 +71,20 @@ async function importStickers(): Promise<void> {
         :key="s.id"
         class="stk"
         :class="{ disabled: !props.stickerEnabled }"
-        :title="props.stickerEnabled ? '点击发送，右键删除' : '当前会话不可发表情包'"
+        :title="props.stickerEnabled ? tr('点击发送，右键删除') : tr('当前会话不可发表情包')"
         @click="props.stickerEnabled && emit('sticker', s.id)"
         @contextmenu.prevent="stickers.remove(s.id)"
       >
         <img
           :src="`pantry-sticker://${s.id}`"
-          alt="表情"
+          :alt="tr('表情')"
           loading="lazy"
           decoding="async"
         />
         <span class="stk-actions" @click.stop>
           <button
             type="button"
-            aria-label="上移表情"
+            :aria-label="tr('上移表情')"
             :disabled="index === 0"
             @click="stickers.move(s.id, -1)"
           >
@@ -93,7 +92,7 @@ async function importStickers(): Promise<void> {
           </button>
           <button
             type="button"
-            aria-label="下移表情"
+            :aria-label="tr('下移表情')"
             :disabled="index === stickers.list.length - 1"
             @click="stickers.move(s.id, 1)"
           >
@@ -101,9 +100,7 @@ async function importStickers(): Promise<void> {
           </button>
         </span>
       </div>
-      <p v-if="stickers.list.length === 0" class="empty">
-        还没有收藏的表情<br />在聊天图片上右键「添加到表情」
-      </p>
+      <p v-if="stickers.list.length === 0" class="empty">{{ tr('还没有收藏的表情') }}<br />{{ tr('在聊天图片上右键「添加到表情」') }}</p>
     </div>
   </div>
 </template>

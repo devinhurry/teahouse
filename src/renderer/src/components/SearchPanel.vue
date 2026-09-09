@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { tr } from '../utils/i18n'
+import { messageText } from '../utils/message-text'
 import { computed } from 'vue'
 import type { PeerView } from '../../../shared/ipc'
 import { usePeersStore } from '../stores/peers'
@@ -52,12 +54,12 @@ async function openHit(convId: string, seq: number, msgId: string): Promise<void
 
 <template>
   <div class="pane">
-    <div v-if="searching" class="placeholder" role="status">正在搜索…</div>
-    <div v-else-if="failed" class="placeholder" role="status">搜索失败，请重新输入关键词</div>
-    <div v-else-if="empty" class="placeholder">没有找到「{{ props.query }}」相关的内容</div>
+    <div v-if="searching" class="placeholder" role="status">{{ tr('正在搜索…') }}</div>
+    <div v-else-if="failed" class="placeholder" role="status">{{ tr('搜索失败，请重新输入关键词') }}</div>
+    <div v-else-if="empty" class="placeholder">{{ tr('没有找到「{0}」相关的内容', { 0: props.query }) }}</div>
     <div v-else class="results">
       <template v-if="result.peers.length > 0">
-        <div class="sec">联系人</div>
+        <div class="sec">{{ tr('联系人') }}</div>
         <button
           type="button"
           v-for="p in result.peers"
@@ -74,7 +76,7 @@ async function openHit(convId: string, seq: number, msgId: string): Promise<void
           />
           <span class="peer-text">
             <span class="t"
-              >{{ peerName(p) }}<em v-if="!p.online" class="off">· 离线</em></span
+              >{{ peerName(p) }}<em v-if="!p.online" class="off">{{ tr('· 离线') }}</em></span
             >
             <span class="s">{{ [p.company, p.dept, p.team].filter(Boolean).join(' / ') || p.ip }}</span>
           </span>
@@ -82,7 +84,7 @@ async function openHit(convId: string, seq: number, msgId: string): Promise<void
       </template>
 
       <template v-if="result.messageGroups.length > 0">
-        <div class="sec">聊天记录</div>
+        <div class="sec">{{ tr('聊天记录') }}</div>
         <button
           type="button"
           v-for="g in result.messageGroups"
@@ -90,13 +92,13 @@ async function openHit(convId: string, seq: number, msgId: string): Promise<void
           class="item"
           @click="openHit(g.convId, g.latestSeq, g.latestMsgId)"
         >
-          <span class="t">与 {{ convName(g.convId, g.peerId) }} 的聊天 · {{ g.count }} 条相关</span>
-          <span class="s">{{ g.snippet }} <i class="time">{{ listTime(g.ts) }}</i></span>
+          <span class="t">{{ tr('与 {0} 的聊天 · {1} 条相关', { 0: convName(g.convId, g.peerId), 1: g.count }) }}</span>
+          <span class="s">{{ g.previewMessage ? messageText(g.previewMessage) : g.snippet }} <i class="time">{{ listTime(g.ts) }}</i></span>
         </button>
       </template>
 
       <template v-if="result.files.length > 0">
-        <div class="sec">文件</div>
+        <div class="sec">{{ tr('文件') }}</div>
         <button
           type="button"
           v-for="f in result.files"
@@ -108,8 +110,7 @@ async function openHit(convId: string, seq: number, msgId: string): Promise<void
             <PantryIcon name="file" :size="14" /><span class="t">{{ f.name }}</span>
           </span>
           <span class="s"
-            >来自与 {{ convName(f.convId, f.peerId) }} 的聊天
-            <i class="time">{{ listTime(f.ts) }}</i></span
+            >{{ tr('来自与 {0} 的聊天', { 0: convName(f.convId, f.peerId) }) }}<i class="time">{{ listTime(f.ts) }}</i></span
           >
         </button>
       </template>

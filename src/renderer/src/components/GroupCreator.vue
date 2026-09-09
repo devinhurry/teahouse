@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { tr } from '../utils/i18n'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { NButton, NInput } from 'naive-ui'
 import type { PeerView } from '../../../shared/ipc'
@@ -42,17 +43,17 @@ const selectedPeers = computed(() =>
 
 const fallbackName = computed(() => {
   const names = selectedPeers.value.slice(0, 3).map((peer) => displayName(peer))
-  return names.length > 0 ? `${names.join('、')} 的讨论组` : '讨论组'
+  return names.length > 0 ? tr('{0} 的讨论组', { 0: names.join('、') }) : tr('讨论组')
 })
 
 const passwordError = computed(() => {
   const password = adminPassword.value.trim()
   const confirm = adminPasswordConfirm.value.trim()
   if (!password && !confirm) {
-    return adminHint.value.trim() ? '密码提示需要先设置管理密码' : ''
+    return adminHint.value.trim() ? tr('密码提示需要先设置管理密码') : ''
   }
-  if (!password || !confirm) return '请完整输入两次管理密码'
-  if (password !== confirm) return '两次输入的管理密码不一致'
+  if (!password || !confirm) return tr('请完整输入两次管理密码')
+  if (password !== confirm) return tr('两次输入的管理密码不一致')
   return ''
 })
 
@@ -86,13 +87,13 @@ async function create(): Promise<void> {
       adminHint.value.trim()
     )
     if (!group) {
-      createError.value = '创建失败，请检查成员后重试。'
+      createError.value = tr('创建失败，请检查成员后重试。')
       return
     }
     await chatStore.openConv(`group:${group.groupId}`).catch(() => undefined)
     emit('close')
   } catch {
-    createError.value = '创建失败，请重试。'
+    createError.value = tr('创建失败，请重试。')
   } finally {
     creating.value = false
   }
@@ -129,18 +130,18 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
     @pointerdown="rememberMaskPointerDown"
     @click.self="requestMaskClose"
   >
-    <div class="dialog" role="dialog" aria-modal="true" aria-label="发起讨论组">
+    <div class="dialog" role="dialog" aria-modal="true" :aria-label="tr('发起讨论组')">
       <header class="head">
-        <h3>发起讨论组</h3>
+        <h3>{{ tr('发起讨论组') }}</h3>
         <div class="steps">
-          <span :class="{ active: step === 'members' }">选人</span>
-          <span :class="{ active: step === 'settings' }">设置</span>
+          <span :class="{ active: step === 'members' }">{{ tr('选人') }}</span>
+          <span :class="{ active: step === 'settings' }">{{ tr('设置') }}</span>
         </div>
       </header>
 
       <section v-if="step === 'settings'" class="page">
         <div class="field">
-          <label for="group-name">组名</label>
+          <label for="group-name">{{ tr('组名') }}</label>
           <NInput
             v-model:value="name"
             class="form-input"
@@ -150,41 +151,41 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
           />
         </div>
         <div class="field">
-          <label for="group-admin-password">管理密码</label>
+          <label for="group-admin-password">{{ tr('管理密码') }}</label>
           <NInput
             v-model:value="adminPassword"
             class="form-input"
             maxlength="64"
             type="password"
-            placeholder="选填；留空仅创建 IP 可管理"
+            :placeholder="tr('选填；留空仅创建 IP 可管理')"
             :input-props="{ id: 'group-admin-password' }"
           />
         </div>
         <div class="field">
-          <label for="group-admin-password-confirm">确认密码</label>
+          <label for="group-admin-password-confirm">{{ tr('确认密码') }}</label>
           <NInput
             v-model:value="adminPasswordConfirm"
             class="form-input"
             maxlength="64"
             type="password"
-            placeholder="再次输入管理密码"
+            :placeholder="tr('再次输入管理密码')"
             :input-props="{ id: 'group-admin-password-confirm' }"
           />
         </div>
         <div class="field">
-          <label for="group-admin-hint">密码提示</label>
+          <label for="group-admin-hint">{{ tr('密码提示') }}</label>
           <NInput
             v-model:value="adminHint"
             class="form-input"
             maxlength="40"
-            placeholder="选填；成员输入密码时显示"
+            :placeholder="tr('选填；成员输入密码时显示')"
             :input-props="{ id: 'group-admin-hint' }"
           />
         </div>
         <p v-if="passwordError || createError" class="error" aria-live="polite">
           {{ passwordError || createError }}
         </p>
-        <p v-else class="hint">管理密码不会保存明文；提示只用于帮成员回忆密码。</p>
+        <p v-else class="hint">{{ tr('管理密码不会保存明文；提示只用于帮成员回忆密码。') }}</p>
       </section>
 
       <GroupMemberPicker
@@ -193,8 +194,8 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
         :max-pick="maxPickOthers"
         :show-list="step === 'members'"
         autofocus
-        search-aria-label="搜索讨论组成员"
-        :selection-limit-label="`+你，最多 ${GROUP_MAX_MEMBERS}`"
+        :search-aria-label="tr('搜索讨论组成员')"
+        :selection-limit-label="tr('+你，最多 {0}', { 0: GROUP_MAX_MEMBERS })"
       />
 
       <div class="foot">
@@ -204,7 +205,7 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
           :disabled="creating"
           @click="backOrClose"
         >
-          {{ step === 'settings' ? '上一步' : '取消' }}
+          {{ step === 'settings' ? tr('上一步') : tr('取消') }}
         </NButton>
         <NButton
           v-if="step === 'members'"
@@ -212,9 +213,7 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
           size="small"
           :disabled="!canNext"
           @click="nextStep"
-        >
-          下一步
-        </NButton>
+        >{{ tr('下一步') }}</NButton>
         <NButton
           v-else
           type="primary"
@@ -223,7 +222,7 @@ onUnmounted(() => document.removeEventListener('keydown', onEscape))
           :loading="creating"
           @click="create"
         >
-          {{ creating ? '创建中' : '创建' }}
+          {{ creating ? tr('创建中') : tr('创建') }}
         </NButton>
       </div>
     </div>

@@ -10,6 +10,7 @@ import type {
 import type { PeerRegistry } from '../net/peer-registry'
 import { toFtsQuery } from '../store/fts'
 import { parsePkRef, pkPreview } from '../../shared/pk'
+import { messagePreview } from '../store/msg-repo'
 
 // 全局搜索（F-MSG-5 / ui-design §6）：联系人（全量含离线）/ 聊天记录（按会话聚合）/ 文件。
 // 中文按字短语匹配走 FTS5；联系人与文件名走 LIKE（千级数据量足够）。
@@ -34,11 +35,11 @@ export class SearchService {
       ORDER BY MAX(CASE WHEN m.kind IN ('text', 'pk') THEN m.ts END) DESC LIMIT 10
     `)
     this.msgLatestStmt = db.prepare(`
-      SELECT id, content, ts, seq FROM messages WHERE conv_id = ? AND seq = ? LIMIT 2
+      SELECT id, kind, content, file_ref, ts, seq FROM messages WHERE conv_id = ? AND seq = ? LIMIT 2
     `)
     // 旧库 seq 无唯一约束；异常同序号保留原 MATCH 的选择方式。
     this.msgLatestFallbackStmt = db.prepare(`
-      SELECT m.id, m.content, m.ts, m.seq
+      SELECT m.id, m.kind, m.content, m.file_ref, m.ts, m.seq
       FROM messages_fts f JOIN messages m ON m.id = f.msg_id
       WHERE messages_fts MATCH ? AND m.conv_id = ?
       ORDER BY m.seq DESC LIMIT 1
@@ -95,7 +96,7 @@ export class SearchService {
         latestSeq: number
       }>
       for (const g of groups) {
-        type Latest = { id: string; content: string; ts: number; seq: number }
+        type Latest = { id: string; kind: string; content: string; file_ref: string | null; ts: number; seq: number }
         const indexed = this.msgLatestStmt.all(g.convId, g.latestSeq) as Latest[]
         const latest = indexed.length === 1
           ? indexed[0]
@@ -105,6 +106,7 @@ export class SearchService {
           peerId: g.convId.startsWith('single:') ? g.convId.slice(7) : g.convId,
           count: g.n,
           snippet: latest?.content ?? '',
+          ...(latest?.kind === 'pk' ? { previewMessage: messagePreview(latest) } : {}),
           latestSeq: latest?.seq ?? g.latestSeq,
           latestMsgId: latest?.id ?? '',
           ts: latest?.ts ?? 0

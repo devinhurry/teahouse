@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { tr } from '../utils/i18n'
 import { computed } from 'vue'
 import monoLogoUrl from '../assets/brand/icon-macos-menubar-outline.svg?url'
 import appIconUrl from '../assets/brand/teahouse-app-icon.png?url'
@@ -29,7 +30,7 @@ const logoSrc = computed(() => {
     :src="logoSrc"
     :width="props.size"
     :height="props.size"
-    alt="茶话间 logo"
+    :alt="tr('茶话间 logo')"
     draggable="false"
   />
 </template>

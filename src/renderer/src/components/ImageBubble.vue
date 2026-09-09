@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { tr } from '../utils/i18n'
 import { computed, onUnmounted, ref, watch } from 'vue'
 import type { MessageView } from '../../../shared/ipc'
 import { RECALL_WINDOW_MS } from '../../../shared/protocol'
@@ -95,7 +96,7 @@ watch(menuAt, (next) => {
 async function addToStickers(): Promise<void> {
   menuAt.value = null
   const ok = await stickersStore.addFromTransfer(transferId.value)
-  showTip(ok ? '已添加到表情' : '添加失败', ok ? 'ok' : 'fail')
+  showTip(ok ? tr('已添加到表情') : tr('添加失败'), ok ? 'ok' : 'fail')
 }
 
 async function sourceToPngBlob(bytes: ArrayBuffer, ext: string): Promise<Blob | null> {
@@ -123,9 +124,9 @@ async function copyImage(): Promise<void> {
     if (!png) throw new Error('png unavailable')
     const ok = await window.pantry.writeImageToClipboard(await png.arrayBuffer())
     if (!ok) throw new Error('clipboard write failed')
-    showTip('已复制', 'ok')
+    showTip(tr('已复制'), 'ok')
   } catch {
-    showTip('复制失败', 'fail')
+    showTip(tr('复制失败'), 'fail')
   }
 }
 
@@ -205,28 +206,22 @@ onUnmounted(() => {
       class="table-switch"
       :class="{ text: showTableText }"
       role="group"
-      aria-label="表格消息视图"
+      :aria-label="tr('表格消息视图')"
       @contextmenu.stop
     >
       <button
         type="button"
         :class="{ selected: tableViewMode === 'image' }"
         @click.stop="tableViewMode = 'image'"
-      >
-        图片
-      </button>
+      >{{ tr('图片') }}</button>
       <button
         type="button"
         :class="{ selected: tableViewMode === 'text' }"
         @click.stop="tableViewMode = 'text'"
-      >
-        文字
-      </button>
+      >{{ tr('文字') }}</button>
     </div>
     <div v-if="showTableText" class="table-text-shell" @contextmenu.stop>
-      <div v-if="props.msg.fileRef?.tableTextTruncated" class="table-text-note">
-        文字视图已截断，图片完整
-      </div>
+      <div v-if="props.msg.fileRef?.tableTextTruncated" class="table-text-note">{{ tr('文字视图已截断，图片完整') }}</div>
       <pre class="table-text">{{ props.msg.fileRef?.tableText }}</pre>
     </div>
     <template v-else>
@@ -235,17 +230,16 @@ onUnmounted(() => {
         v-cached-image="{ transferId, cache: !isSticker }"
         class="thumb"
         :class="{ sticker: isSticker }"
-        alt="[图片]"
+        :alt="tr('[图片]')"
         loading="lazy"
         decoding="async"
         @click="openImageViewer"
         @error="onPreviewError"
         @contextmenu.prevent.stop="onContextMenu"
       />
-      <div v-else-if="failed" class="ph fail">{{ isSticker ? '表情' : '图片' }}传输失败</div>
+      <div v-else-if="failed" class="ph fail">{{ tr('{0}传输失败', { 0: isSticker ? tr('表情') : tr('图片') }) }}</div>
       <div v-else class="ph" :class="{ sticker: isSticker }">
-        {{ isSticker ? '表情' : '图片' }}接收中…
-      </div>
+        {{ tr('{0}接收中…', { 0: isSticker ? tr('表情') : tr('图片') }) }}</div>
     </template>
     <div
       v-if="menuAt"
@@ -253,9 +247,9 @@ onUnmounted(() => {
       :style="{ left: `${menuAt.x}px`, top: `${menuAt.y}px` }"
       @click.stop
     >
-      <button type="button" @click="copyImage">复制</button>
-      <button type="button" @click="forwardImage">转发</button>
-      <button type="button" @click="addToStickers">添加到表情</button>
+      <button type="button" @click="copyImage">{{ tr('复制') }}</button>
+      <button type="button" @click="forwardImage">{{ tr('转发') }}</button>
+      <button type="button" @click="addToStickers">{{ tr('添加到表情') }}</button>
       <button
         v-if="props.recallVisible"
         type="button"
@@ -263,7 +257,7 @@ onUnmounted(() => {
         :disabled="recallDisabled"
         @click="recallImage"
       >
-        <span>撤回</span>
+        <span>{{ tr('撤回') }}</span>
         <span class="recall-action-meta" :class="{ 'is-urgent': recallUrgent }">
           {{ recallMeta }}
         </span>

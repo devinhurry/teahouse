@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { tr } from '../utils/i18n'
 import { computed, ref, watch } from 'vue'
 import { NInput } from 'naive-ui'
 import type { PeerView } from '../../../shared/ipc'
@@ -23,7 +24,7 @@ const props = withDefaults(
   }>(),
   {
     excludedIds: () => [],
-    emptyText: '没有可选联系人',
+    emptyText: tr('没有可选联系人'),
     autofocus: false,
     showList: true
   }
@@ -104,7 +105,7 @@ defineExpose({ focusSearch })
         size="small"
         maxlength="40"
         :autofocus="autofocus"
-        placeholder="搜索联系人、部门、团队或 IP"
+        :placeholder="tr('搜索联系人、部门、团队或 IP')"
         :input-props="{ 'aria-label': searchAriaLabel }"
       />
       <div class="pick-list">
@@ -127,18 +128,16 @@ defineExpose({ focusSearch })
               {{ organization }}
             </span>
           </span>
-          <em v-if="!p.online" class="off-tag">离线</em>
+          <em v-if="!p.online" class="off-tag">{{ tr('离线') }}</em>
         </label>
-        <p v-if="peersStore.peers.length === 0" class="empty">还没有发现任何节点</p>
+        <p v-if="peersStore.peers.length === 0" class="empty">{{ tr('还没有发现任何节点') }}</p>
         <p v-else-if="availableRows.length === 0" class="empty">{{ emptyText }}</p>
-        <p v-else-if="filteredRows.length === 0" class="empty">没有匹配的联系人</p>
+        <p v-else-if="filteredRows.length === 0" class="empty">{{ tr('没有匹配的联系人') }}</p>
       </div>
     </template>
 
     <div v-if="selectedPeers.length > 0" class="picked-bar">
-      <span class="count">
-        已选 {{ selectedPeers.length }} 人（{{ selectionLimitLabel }}）
-      </span>
+      <span class="count">{{ tr('已选 {0} 人（{1}）', { 0: selectedPeers.length, 1: selectionLimitLabel }) }}</span>
       <button
         v-for="peer in selectedPeers"
         :key="peer.nodeId"

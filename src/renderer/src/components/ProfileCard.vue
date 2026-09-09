@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { tr } from '../utils/i18n'
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { NButton, NInput } from 'naive-ui'
 import type { PeerView } from '../../../shared/ipc'
@@ -78,14 +79,14 @@ async function saveRemark(): Promise<void> {
       savedTimer = null
     }, 1500)
   } catch {
-    error.value = '保存失败，请稍后重试'
+    error.value = tr('保存失败，请稍后重试')
   } finally {
     saving.value = false
   }
 }
 
 function orgPath(p: PeerView): string {
-  return [p.company, p.dept, p.team].filter(Boolean).join(' / ') || '未分组'
+  return [p.company, p.dept, p.team].filter(Boolean).join(' / ') || tr('未分组')
 }
 
 function platformLabel(platform: PeerView['platform']): string {
@@ -95,8 +96,8 @@ function platformLabel(platform: PeerView['platform']): string {
 }
 
 function lastSeenLabel(peer: PeerView): string {
-  if (peer.online) return '当前在线'
-  return listTime(peer.lastSeen) || '离线'
+  if (peer.online) return tr('当前在线')
+  return listTime(peer.lastSeen) || tr('离线')
 }
 
 </script>
@@ -118,37 +119,37 @@ function lastSeenLabel(peer: PeerView): string {
             <h2>{{ displayName }}</h2>
             <span class="status-pill" :class="{ on: peer.online }">
               <span class="status-dot"></span>
-              {{ peer.online ? '在线' : '离线' }}
+              {{ peer.online ? tr('在线') : tr('离线') }}
             </span>
           </div>
-          <p v-if="peer.remark" class="raw-nick">昵称：{{ peer.nick }}</p>
+          <p v-if="peer.remark" class="raw-nick">{{ tr('昵称：{0}', { 0: peer.nick }) }}</p>
           <p class="org">{{ orgPath(peer) }}</p>
         </div>
       </header>
 
       <section class="profile-section">
         <div class="section-head">
-          <span>备注</span>
-          <small>仅自己可见</small>
+          <span>{{ tr('备注') }}</span>
+          <small>{{ tr('仅自己可见') }}</small>
         </div>
         <div class="remark-line">
-          <label for="peer-remark">本地备注</label>
+          <label for="peer-remark">{{ tr('本地备注') }}</label>
           <NInput
             v-model:value="remark"
             class="remark-input"
             maxlength="32"
-            placeholder="仅自己可见，重名时好认"
+            :placeholder="tr('仅自己可见，重名时好认')"
             :input-props="{ id: 'peer-remark' }"
             @update:value="onRemarkInput"
             @keydown.enter.prevent="saveRemark"
           />
         </div>
-        <p class="helper">保存后，会话列表、通讯录和搜索都会优先显示备注。</p>
+        <p class="helper">{{ tr('保存后，会话列表、通讯录和搜索都会优先显示备注。') }}</p>
       </section>
 
       <section class="profile-section">
         <div class="section-head">
-          <span>详细信息</span>
+          <span>{{ tr('详细信息') }}</span>
         </div>
         <div class="info-list">
           <div class="info-row">
@@ -156,22 +157,22 @@ function lastSeenLabel(peer: PeerView): string {
             <strong>{{ peer.ip }}</strong>
           </div>
           <div class="info-row">
-            <span>主机</span>
+            <span>{{ tr('主机') }}</span>
             <strong>{{ peer.host }}</strong>
           </div>
           <div class="info-row">
-            <span>平台</span>
+            <span>{{ tr('平台') }}</span>
             <strong>{{ platformLabel(peer.platform) }}</strong>
           </div>
           <div class="info-row">
-            <span>最近</span>
+            <span>{{ tr('最近') }}</span>
             <strong>{{ lastSeenLabel(peer) }}</strong>
           </div>
         </div>
       </section>
 
       <footer class="profile-actions">
-        <span class="save-state" :class="{ error: error }">{{ error || (saved ? '已保存' : '') }}</span>
+        <span class="save-state" :class="{ error: error }">{{ error || (saved ? tr('已保存') : '') }}</span>
         <NButton
           secondary
           :disabled="saving || !remarkChanged"
@@ -179,12 +180,10 @@ function lastSeenLabel(peer: PeerView): string {
           @click="saveRemark"
         >
           <template #icon><PantryIcon name="check" :size="14" /></template>
-          {{ saving ? '保存中' : '保存备注' }}
+          {{ saving ? tr('保存中') : tr('保存备注') }}
         </NButton>
         <NButton type="primary" @click="emit('chat', peer.nodeId)">
-          <template #icon><PantryIcon name="chat" :size="15" /></template>
-          发消息
-        </NButton>
+          <template #icon><PantryIcon name="chat" :size="15" /></template>{{ tr('发消息') }}</NButton>
       </footer>
     </article>
   </div>

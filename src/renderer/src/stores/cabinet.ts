@@ -1,3 +1,5 @@
+import { computed } from 'vue'
+import { tr, language } from '../utils/i18n'
 import { defineStore } from 'pinia'
 import {
   SHARE_FAIL_TEXT,
@@ -22,11 +24,11 @@ export type CabinetViewMode = 'list' | 'grid'
 
 const VIEW_MODE_KEY = 'pantry.cabinet.viewMode'
 
-export const SHARE_MODE_OPTIONS: Array<{ label: string; value: ShareMode }> = [
-  { label: '不共享', value: 'off' },
-  { label: '只读', value: 'read' },
-  { label: '可读可传', value: 'write' }
-]
+export const SHARE_MODE_OPTIONS = computed<Array<{ label: string; value: ShareMode }>>(() => ([
+  { label: tr('不共享'), value: 'off' },
+  { label: tr('只读'), value: 'read' },
+  { label: tr('可读可传'), value: 'write' }
+]))
 
 export function cabinetPeerName(p: PeerView): string {
   return p.remark || p.nick || p.nodeId.slice(0, 8)
@@ -92,15 +94,15 @@ export const useCabinetStore = defineStore('cabinet', {
   getters: {
     shareRoot: (state) => state.settings?.fileCabinet.root ?? '',
     shareMode: (state): ShareMode => state.settings?.fileCabinet.mode ?? 'off',
-    selfName: (state) => state.settings?.nick.trim() || '你的名字',
+    selfName: (state) => state.settings?.nick.trim() || tr('你的名字'),
 
     shareModeHint(): string {
-      if (!this.shareRoot) return '先选择共享目录，权限才会生效。'
+      if (!this.shareRoot) return tr('先选择共享目录，权限才会生效。')
       if (this.shareMode === 'write') {
-        return '同事可以浏览、下载，也能往你的文件柜放新文件；他们不能删除、改名或覆盖你已有的文件。'
+        return tr('同事可以浏览、下载，也能往你的文件柜放新文件；他们不能删除、改名或覆盖你已有的文件。')
       }
-      if (this.shareMode === 'read') return '同事可以浏览和下载，不能往里放东西。'
-      return '默认谁都看不到；可以在下面单独给某位同事开放。'
+      if (this.shareMode === 'read') return tr('同事可以浏览和下载，不能往里放东西。')
+      return tr('默认谁都看不到；可以在下面单独给某位同事开放。')
     },
 
     /** 同事列表：只收声明 shr1 的联系人，在线在前、离线灰显在后（决议 #17/#283） */
@@ -109,7 +111,7 @@ export const useCabinetStore = defineStore('cabinet', {
         .peers.filter((p) => Array.isArray(p.caps) && p.caps.includes(CAPS.fileCabinet))
         .sort((a, b) => {
           if (a.online !== b.online) return a.online ? -1 : 1
-          return cabinetPeerName(a).localeCompare(cabinetPeerName(b), 'zh-Hans-CN')
+          return cabinetPeerName(a).localeCompare(cabinetPeerName(b), language.value)
         })
     },
 
@@ -118,7 +120,7 @@ export const useCabinetStore = defineStore('cabinet', {
       return usePeersStore()
         .peers.filter((p) => !this.grants.some((g) => g.nodeId === p.nodeId))
         .map((p) => ({
-          label: `${cabinetPeerName(p)}${p.online ? '' : '（离线）'}`,
+          label: `${cabinetPeerName(p)}${p.online ? '' : tr('（离线）')}`,
           value: p.nodeId
         }))
     },
@@ -130,8 +132,8 @@ export const useCabinetStore = defineStore('cabinet', {
 
     canUpload: (state) => state.perm === 'write',
     hasMore: (state) => state.entries.length < state.total,
-    failText: (state) => (state.failReason ? SHARE_FAIL_TEXT[state.failReason] : ''),
-    moreFailText: (state) => (state.moreFailReason ? SHARE_FAIL_TEXT[state.moreFailReason] : ''),
+    failText: (state) => (state.failReason ? tr(SHARE_FAIL_TEXT[state.failReason]) : ''),
+    moreFailText: (state) => (state.moreFailReason ? tr(SHARE_FAIL_TEXT[state.moreFailReason]) : ''),
     pickedCount: (state) => state.picked.size,
     pickedSize: (state) =>
       state.entries
@@ -141,10 +143,10 @@ export const useCabinetStore = defineStore('cabinet', {
       state.entries.length > 0 && state.entries.every((e) => state.picked.has(e.name)),
     // 勾选只覆盖已取回的条目，还有下一页时说「全选」会让人以为把 total 项都选上了（决议 #281）
     pickAllLabel(): string {
-      return this.hasMore ? '选择已加载' : '全选'
+      return this.hasMore ? tr('选择已加载') : tr('全选')
     },
     crumbs: (state) => {
-      const list = [{ name: '文件柜', path: '' }]
+      const list = [{ name: tr('文件柜'), path: '' }]
       let acc = ''
       for (const seg of state.path ? state.path.split('/') : []) {
         acc = acc ? `${acc}/${seg}` : seg
@@ -187,9 +189,9 @@ export const useCabinetStore = defineStore('cabinet', {
         if (view.peerId !== this.target.peerId) return
         this.transfer = view
         const up = view.direction === 'out'
-        if (view.status === 'done') this.note = up ? '上传完成' : '下载完成'
-        else if (view.status === 'failed') this.note = up ? '上传失败，可重试' : '下载失败，可重试'
-        else if (view.status === 'canceled') this.note = '已取消'
+        if (view.status === 'done') this.note = up ? tr('上传完成') : tr('下载完成')
+        else if (view.status === 'failed') this.note = up ? tr('上传失败，可重试') : tr('下载失败，可重试')
+        else if (view.status === 'canceled') this.note = tr('已取消')
       })
       await Promise.all([this.loadGrants(), this.loadRecentUploads()])
     },
@@ -365,12 +367,12 @@ export const useCabinetStore = defineStore('cabinet', {
       const result = await window.pantry.downloadShare(this.target.peerId, paths, saveAs)
       this.downloading = false
       if (!result.ok) {
-        this.note = SHARE_FAIL_TEXT[result.reason]
+        this.note = tr(SHARE_FAIL_TEXT[result.reason])
         return
       }
       if (result.canceled) return
       if (!only) this.picked = new Set()
-      this.note = '已开始下载'
+      this.note = tr('已开始下载')
     },
 
     // 上传永远落到对方共享根下以我命名的子目录，与当前浏览到哪一层无关（决议 #272）
@@ -382,10 +384,10 @@ export const useCabinetStore = defineStore('cabinet', {
       const result = await window.pantry.uploadShare(this.target.peerId, undefined, directory)
       this.uploading = false
       if (!result.ok) {
-        this.note = SHARE_UPLOAD_FAIL_TEXT[result.reason]
+        this.note = tr(SHARE_UPLOAD_FAIL_TEXT[result.reason])
         return
       }
-      if (!result.canceled) this.note = `正在上传 ${result.fileCount} 个文件`
+      if (!result.canceled) this.note = tr('正在上传 {0} 个文件', { 0: result.fileCount })
     },
 
     async uploadDropped(localPaths: string[]): Promise<void> {
@@ -398,10 +400,10 @@ export const useCabinetStore = defineStore('cabinet', {
       const result = await window.pantry.uploadShare(this.target.peerId, granted)
       this.uploading = false
       if (!result.ok) {
-        this.note = SHARE_UPLOAD_FAIL_TEXT[result.reason]
+        this.note = tr(SHARE_UPLOAD_FAIL_TEXT[result.reason])
         return
       }
-      if (!result.canceled) this.note = `正在上传 ${result.fileCount} 个文件`
+      if (!result.canceled) this.note = tr('正在上传 {0} 个文件', { 0: result.fileCount })
     },
 
     cancelTransfer(): void {
@@ -440,12 +442,12 @@ export const useCabinetStore = defineStore('cabinet', {
       this.shareRootError = ''
       const result = await window.pantry.setShareRoot()
       if (!result.ok) {
-        this.shareRootError = SHARE_ROOT_REJECT_TEXT[result.reason]
+        this.shareRootError = tr(SHARE_ROOT_REJECT_TEXT[result.reason])
         return
       }
       if (result.canceled) return
       this.settings = result.view
-      this.flashToast('共享目录已设置')
+      this.flashToast(tr('共享目录已设置'))
     },
 
     async clearShareRoot(): Promise<void> {
@@ -453,7 +455,7 @@ export const useCabinetStore = defineStore('cabinet', {
       const result = await window.pantry.setShareRoot(true)
       if (result.ok && !result.canceled) {
         this.settings = result.view
-        this.flashToast('已停止共享')
+        this.flashToast(tr('已停止共享'))
       }
     },
 
@@ -464,23 +466,23 @@ export const useCabinetStore = defineStore('cabinet', {
     async changeShareMode(mode: ShareMode): Promise<void> {
       if (mode === this.shareMode) return
       this.settings = await window.pantry.setShareMode(mode)
-      this.flashToast('设置已保存')
+      this.flashToast(tr('设置已保存'))
     },
 
     // 新例外默认给"只读"：加例外多半是为了对某人开一条缝，写权限再手动往上调
     async addGrant(nodeId: string): Promise<void> {
       this.grants = await window.pantry.setShareGrant(nodeId, 'read')
-      this.flashToast('已添加例外')
+      this.flashToast(tr('已添加例外'))
     },
 
     async changeGrant(nodeId: string, mode: ShareMode): Promise<void> {
       this.grants = await window.pantry.setShareGrant(nodeId, mode)
-      this.flashToast('设置已保存')
+      this.flashToast(tr('设置已保存'))
     },
 
     async removeGrant(nodeId: string): Promise<void> {
       this.grants = await window.pantry.setShareGrant(nodeId, null)
-      this.flashToast('已恢复跟随默认')
+      this.flashToast(tr('已恢复跟随默认'))
     }
   }
 })

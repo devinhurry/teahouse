@@ -1,3 +1,4 @@
+import { tr } from './i18n'
 import type { ImageOcrSource } from '../../../shared/ipc'
 import { BoundedLruCache } from './bounded-cache'
 
@@ -113,7 +114,7 @@ export function recognizeImageText(params: {
   naturalHeight: number
   onProgress: ProgressListener
 }): Promise<OcrResult> {
-  if (activeTask) return Promise.reject(new Error('正在识别其他图片'))
+  if (activeTask) return Promise.reject(new Error(tr('正在识别其他图片')))
   const cached = resultCache.get(params.cacheKey)
   if (cached?.text.trim()) {
     params.onProgress(1, 'cached')
@@ -153,7 +154,7 @@ export function recognizeImageText(params: {
       if (activeTask !== task) return
       stopWorker()
       activeTask = null
-      task.reject(error instanceof Error ? error : new Error('OCR 识别失败'))
+      task.reject(error instanceof Error ? error : new Error(tr('OCR 识别失败')))
     })
   })
 }
@@ -164,7 +165,7 @@ export function cancelImageTextRecognition(): void {
   activeTask = null
   // 解码阶段可保留上一张已闲置的模型；推理中的 Worker 必须终止。
   if (workerBusy) stopWorker()
-  task.reject(new DOMException('图片文字识别已取消', 'AbortError'))
+  task.reject(new DOMException(tr('图片文字识别已取消'), 'AbortError'))
 }
 
 export function disposeImageTextRecognition(): void {
@@ -198,7 +199,7 @@ function getWorker(): Worker {
       task.resolve(data.result)
     } else {
       stopWorker()
-      task.reject(new Error('OCR 识别失败'))
+      task.reject(new Error(tr('OCR 识别失败')))
     }
   }
   instance.onerror = instance.onmessageerror = () => {
@@ -206,7 +207,7 @@ function getWorker(): Worker {
     stopWorker()
     const task = activeTask
     activeTask = null
-    task?.reject(new Error('OCR 识别失败'))
+    task?.reject(new Error(tr('OCR 识别失败')))
   }
   return instance
 }
@@ -222,7 +223,7 @@ async function prepareImageForOcr(
   const { source, width: natW, height: natH } = await decodeImage(blob, naturalWidth, naturalHeight, cancelled)
   if (cancelled()) {
     if (source instanceof ImageBitmap) source.close()
-    throw new DOMException('图片文字识别已取消', 'AbortError')
+    throw new DOMException(tr('图片文字识别已取消'), 'AbortError')
   }
   const longestSide = Math.max(natW, natH) || 1
   const scale = longestSide <= OCR_MAX_SIDE ? 1 : OCR_MAX_SIDE / longestSide
@@ -234,7 +235,7 @@ async function prepareImageForOcr(
   const ctx = canvas.getContext('2d', { alpha: false })
   if (!ctx) {
     if (source instanceof ImageBitmap) source.close()
-    throw new Error('OCR 图片预处理失败')
+    throw new Error(tr('OCR 图片预处理失败'))
   }
   try {
     ctx.drawImage(source, 0, 0, width, height)
@@ -261,7 +262,7 @@ async function decodeImage(
     })
     return { source: bitmap, width: fallbackWidth, height: fallbackHeight }
   } catch {
-    if (cancelled()) throw new DOMException('图片文字识别已取消', 'AbortError')
+    if (cancelled()) throw new DOMException(tr('图片文字识别已取消'), 'AbortError')
     const image = await loadBlobImage(blob)
     return {
       source: image,
@@ -281,7 +282,7 @@ function loadBlobImage(blob: Blob): Promise<HTMLImageElement> {
     }
     image.onerror = () => {
       URL.revokeObjectURL(url)
-      reject(new Error('OCR 图片解码失败'))
+      reject(new Error(tr('OCR 图片解码失败')))
     }
     image.src = url
   })

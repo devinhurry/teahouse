@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { tr } from '../utils/i18n'
 import { computed, watch } from 'vue'
 import type { MessageView, TransferView } from '../../../shared/ipc'
 import { useTransfersStore } from '../stores/transfers'
@@ -90,15 +91,15 @@ const metaText = computed(() => {
   const t = transfer.value
   if (inProgress.value && t) {
     // 排队中（决议 #211）：发送方并发预算已满，显示真实状态而不是假 0 速度
-    if (t.queued) return `${formatBytes(t.bytesDone)} / ${formatBytes(t.totalSize)} · 排队等待发送方`
+    if (t.queued) return tr('{0} / {1} · 排队等待发送方', { 0: formatBytes(t.bytesDone), 1: formatBytes(t.totalSize) })
     return `${formatBytes(t.bytesDone)} / ${formatBytes(t.totalSize)} · ${formatBytes(speed.value)}/s`
   }
   if (directFile.value && t?.direction === 'in' && t.status === 'done') {
-    return '已保存本地'
+    return tr('已保存本地')
   }
   const r = ref_.value
   if (!r) return ''
-  const base = r.count > 1 ? `${formatBytes(r.size)} · ${r.count} 个文件` : formatBytes(r.size)
+  const base = r.count > 1 ? tr('{0} · {1} 个文件', { 0: formatBytes(r.size), 1: r.count }) : formatBytes(r.size)
   // 群发传输中：大小后附整体速率（群聊用「已接收 x/x」计数代替进度条，决议 #75）
   if (multiActive.value && speed.value > 0) return `${base} · ${formatBytes(speed.value)}/s`
   return base
@@ -107,7 +108,7 @@ const metaText = computed(() => {
 const stateChipText = computed(() => {
   const t = transfer.value
   if (!multiOut.value && t?.direction === 'out' && t.status === 'offering') {
-    return directFile.value ? '发送中' : '等待接收'
+    return directFile.value ? tr('发送中') : tr('等待接收')
   }
   return ''
 })
@@ -117,26 +118,26 @@ const statusText = computed(() => {
   if (multiOut.value) {
     const total = transferIds.value.length
     const { done, failed, canceled, expired, active } = transferStats.value
-    if (props.msg.status === 'canceled') return '发送取消'
-    if (done === total) return '已全部送达'
-    if (expired > 0 && !active) return '发送已到期'
-    if (failed === total && total > 0) return '传输失败'
-    if (failed + canceled > 0) return `${failed + canceled} 位未完成`
-    return `等待 ${total} 位成员接收`
+    if (props.msg.status === 'canceled') return tr('发送取消')
+    if (done === total) return tr('已全部送达')
+    if (expired > 0 && !active) return tr('发送已到期')
+    if (failed === total && total > 0) return tr('传输失败')
+    if (failed + canceled > 0) return tr('{0} 位未完成', { 0: failed + canceled })
+    return tr('等待 {0} 位成员接收', { 0: total })
   }
   const t = transfer.value
   if (!t) return ''
   switch (t.status) {
     case 'done':
-      return t.direction === 'out' ? '发送成功' : '已完成'
+      return t.direction === 'out' ? tr('发送成功') : tr('已完成')
     case 'declined':
-      return t.direction === 'out' ? '对方已拒收' : '已拒收'
+      return t.direction === 'out' ? tr('对方已拒收') : tr('已拒收')
     case 'canceled':
-      return t.direction === 'out' && props.msg.status === 'canceled' ? '发送取消' : '已取消'
+      return t.direction === 'out' && props.msg.status === 'canceled' ? tr('发送取消') : tr('已取消')
     case 'expired':
-      return t.direction === 'out' ? '发送已到期' : '文件已过期'
+      return t.direction === 'out' ? tr('发送已到期') : tr('文件已过期')
     default:
-      return directFile.value ? '直接发送失败' : '传输失败'
+      return directFile.value ? tr('直接发送失败') : tr('传输失败')
   }
 })
 
@@ -173,10 +174,10 @@ const canRequestDirect = computed(
 )
 const directButtonTitle = computed(() => {
   if (!showDirectButton.value) return ''
-  if (props.msg.status !== 'sent') return '文件信息送达后可直接发送'
-  if (!directPeer.value?.online) return '对方离线，无法直接发送'
-  if (!(directPeer.value?.caps ?? []).includes('fd1')) return '对方版本暂不支持直接发送'
-  return '让对方免确认保存到发送人目录'
+  if (props.msg.status !== 'sent') return tr('文件信息送达后可直接发送')
+  if (!directPeer.value?.online) return tr('对方离线，无法直接发送')
+  if (!(directPeer.value?.caps ?? []).includes('fd1')) return tr('对方版本暂不支持直接发送')
+  return tr('让对方免确认保存到发送人目录')
 })
 const showReveal = computed(
   () => !multiOut.value && transfer.value?.status === 'done' && transfer.value.direction === 'in'
@@ -190,7 +191,7 @@ const showRetry = computed(
     transfer.value.retryable === true
 )
 const retryLabel = computed(() =>
-  transfer.value?.status === 'canceled' ? '重新下载' : '继续'
+  transfer.value?.status === 'canceled' ? tr('重新下载') : tr('继续')
 )
 const showBadge = computed(
   () => !showRecvActions.value && !showCancel.value && !showReveal.value && !showRetry.value
@@ -232,7 +233,7 @@ function requestDirect(): void {
     <div class="info">
       <div class="name-line">
         <div class="name" :title="ref_.name">{{ ref_.name }}</div>
-        <span v-if="directFile" class="direct-chip">直接</span>
+        <span v-if="directFile" class="direct-chip">{{ tr('直接') }}</span>
         <span v-if="stateChipText" class="state-chip" :class="{ direct: directFile }">
           {{ stateChipText }}
         </span>
@@ -242,31 +243,29 @@ function requestDirect(): void {
         <div class="fill" :style="{ width: `${percent}%` }"></div>
       </div>
       <div v-if="multiOut" class="recv">
-        <span class="recv-count">已接收 {{ doneCount }}/{{ totalCount }}</span>
+        <span class="recv-count">{{ tr('已接收 {0}/{1}', { 0: doneCount, 1: totalCount }) }}</span>
         <span class="recv-pop" role="tooltip">
           <template v-if="receivedNames.length">{{ receivedNames.join('、') }}</template>
-          <template v-else>还没有人接收</template>
+          <template v-else>{{ tr('还没有人接收') }}</template>
         </span>
       </div>
     </div>
     <div class="tail">
       <template v-if="showRecvActions">
         <div class="action-row recv-action-row">
-          <button class="act primary recv-primary" @click="transfers.accept(ref_.transferId)">
-            接收
-          </button>
+          <button class="act primary recv-primary" @click="transfers.accept(ref_.transferId)">{{ tr('接收') }}</button>
           <button
             class="icon-act"
-            aria-label="另存为"
-            title="另存为"
+            :aria-label="tr('另存为')"
+            :title="tr('另存为')"
             @click="transfers.accept(ref_.transferId, true)"
           >
             <PantryIcon name="folder" :size="14" />
           </button>
           <button
             class="icon-act danger"
-            aria-label="拒绝接收"
-            title="拒绝接收"
+            :aria-label="tr('拒绝接收')"
+            :title="tr('拒绝接收')"
             @click="transfers.decline(ref_.transferId)"
           >
             <PantryIcon name="x" :size="14" />
@@ -281,23 +280,19 @@ function requestDirect(): void {
             :disabled="!canRequestDirect"
             :title="directButtonTitle"
             @click="requestDirect"
-          >
-            直接发送
-          </button>
+          >{{ tr('直接发送') }}</button>
           <button
             :class="showDirectButton ? 'icon-act danger' : 'act danger'"
-            :aria-label="showDirectButton ? '取消发送' : undefined"
-            :title="showDirectButton ? '取消发送' : undefined"
+            :aria-label="showDirectButton ? tr('取消发送') : undefined"
+            :title="showDirectButton ? tr('取消发送') : undefined"
             @click="cancelActiveTransfers"
           >
             <PantryIcon v-if="showDirectButton" name="x" :size="14" />
-            <template v-else>取消</template>
+            <template v-else>{{ tr('取消') }}</template>
           </button>
         </div>
       </template>
-      <button v-else-if="showReveal" class="act" @click="transfers.reveal(ref_.transferId)">
-        打开所在文件夹
-      </button>
+      <button v-else-if="showReveal" class="act" @click="transfers.reveal(ref_.transferId)">{{ tr('打开所在文件夹') }}</button>
       <button v-else-if="showRetry" class="act primary" @click="transfers.accept(ref_.transferId)">
         {{ retryLabel }}
       </button>

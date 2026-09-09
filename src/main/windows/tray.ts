@@ -1,3 +1,4 @@
+import { tr } from '../../i18n'
 import { app, BrowserWindow, Menu, Tray, nativeImage } from 'electron'
 import { TRAY_ICON_COLOR_DATAURL, TRAY_ICON_MONO_DATAURL } from './tray-icon'
 import {
@@ -34,6 +35,9 @@ function createTrayBaseIcon(): ReturnType<typeof nativeImage.createFromDataURL> 
   return nativeImage.createFromDataURL(TRAY_ICON_COLOR_DATAURL)
 }
 
+let menuDeps: TrayDeps | undefined
+let unreadCount = 0
+
 let flashTimer: ReturnType<typeof setInterval> | null = null
 let flashOn = false
 let flashTray: Tray | null = null
@@ -47,14 +51,8 @@ let flashUnreadDataURL = ''
 export function setupTray(deps: TrayDeps): Tray | null {
   try {
     const tray = new Tray(createTrayBaseIcon())
-    tray.setToolTip('茶话间')
-    tray.setContextMenu(
-      Menu.buildFromTemplate([
-        { label: '打开茶话间', click: deps.showWindow },
-        { type: 'separator' },
-        { label: '退出', click: deps.quit }
-      ])
-    )
+    menuDeps = deps
+    refreshTrayLanguage(tray)
     // Windows/Linux 习惯：单击托盘直接唤起主窗
     tray.on('click', deps.showWindow)
     return tray
@@ -64,8 +62,19 @@ export function setupTray(deps: TrayDeps): Tray | null {
   }
 }
 
+export function refreshTrayLanguage(tray: Tray | null, mainWindow: BrowserWindow | null = null): void {
+  if (!tray || !menuDeps) return
+  updateTrayUnread(tray, mainWindow, unreadCount)
+  tray.setContextMenu(Menu.buildFromTemplate([
+    { label: tr('打开茶话间'), click: menuDeps.showWindow },
+    { type: 'separator' },
+    { label: tr('退出'), click: menuDeps.quit }
+  ]))
+}
+
 export function updateTrayUnread(tray: Tray | null, mainWindow: BrowserWindow | null, count: number): void {
   const safeCount = Math.max(0, count)
+  unreadCount = safeCount
   const label = unreadBadgeText(safeCount)
   tray?.setToolTip(trayUnreadToolTip(safeCount))
 
@@ -79,7 +88,7 @@ export function updateTrayUnread(tray: Tray | null, mainWindow: BrowserWindow | 
 
   if (process.platform === 'win32') {
     const overlay = safeCount > 0 ? nativeImage.createFromDataURL(createUnreadOverlayIconDataURL(safeCount)) : null
-    mainWindow?.setOverlayIcon(overlay, safeCount > 0 ? `${label} 条未读消息` : '')
+    mainWindow?.setOverlayIcon(overlay, safeCount > 0 ? tr('{0} 条未读消息', { 0: label }) : '')
   } else if (process.platform === 'linux') {
     app.setBadgeCount(safeCount)
   }

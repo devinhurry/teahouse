@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { messageText } from '../utils/message-text'
+import { tr } from '../utils/i18n'
 import { computed, ref, watch } from 'vue'
 import type { MessageView, ReplyMeta } from '../../../shared/ipc'
 import type { PkGame } from '../../../shared/pk'
@@ -95,17 +97,17 @@ const replyMeta = computed((): ReplyMeta => {
     return {
       id: replyTo,
       senderName: '',
-      text: historicalReply.value === undefined ? '正在加载原消息…' : '原消息不可用'
+      text: historicalReply.value === undefined ? tr('正在加载原消息…') : tr('原消息不可用')
     }
   }
   let senderName = ''
   let text = replyMsg.text
   if (replyMsg.status === 'recalled') {
-    text = '消息已被撤回'
+    text = tr('消息已被撤回')
   } else if (replyMsg.isMine) {
-    senderName = '我'
+    senderName = tr('我')
   } else {
-    senderName = peersStore.nameOf(replyMsg.senderId) || '未知成员'
+    senderName = peersStore.nameOf(replyMsg.senderId) || tr('未知成员')
   }
   return { id: replyTo, senderName, text }
 })
@@ -119,9 +121,9 @@ const replyMeta = computed((): ReplyMeta => {
     class="system-line system-action"
     @click="revealSystemTarget"
   >
-    {{ props.msg.text }}
+    {{ messageText(props.msg) }}
   </button>
-  <div v-else-if="props.msg.kind === 'system'" class="system-line">{{ props.msg.text }}</div>
+  <div v-else-if="props.msg.kind === 'system'" class="system-line">{{ messageText(props.msg) }}</div>
   <div
     v-else-if="props.msg.status !== 'recalled'"
     :id="`msg-${props.msg.id}`"
@@ -189,7 +191,7 @@ const replyMeta = computed((): ReplyMeta => {
         </template>
       </div>
       <div v-if="props.msg.replyTo" class="reply-quote" @click.stop="$emit('reply-to', props.msg.replyTo)">
-        <span class="reply-quote-label">引用</span>
+        <span class="reply-quote-label">{{ tr('引用') }}</span>
         <span class="reply-quote-sender" v-if="replyMeta.senderName">{{ replyMeta.senderName }}：</span>
         <span class="reply-quote-text">{{ replyMeta.text }}</span>
       </div>
@@ -202,12 +204,12 @@ const replyMeta = computed((): ReplyMeta => {
         class="canceled"
         name="x"
         :size="13"
-        title="发送取消"
+        :title="tr('发送取消')"
       />
       <span
         v-else-if="props.msg.status === 'queued'"
         class="queued"
-        title="对方上线后自动送达"
+        :title="tr('对方上线后自动送达')"
         @click="emit('resend', props.msg.id)"
       >
         <PantryIcon name="clock" :size="13" />
@@ -215,7 +217,7 @@ const replyMeta = computed((): ReplyMeta => {
       <span
         v-else
         class="fail"
-        title="发送失败，点击重发"
+        :title="tr('发送失败，点击重发')"
         @click="emit('resend', props.msg.id)"
       >
         !

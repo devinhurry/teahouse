@@ -1,3 +1,4 @@
+import { tr } from '../utils/i18n'
 import { defineStore } from 'pinia'
 import type { PeerView } from '../../../shared/ipc'
 
@@ -19,7 +20,7 @@ export const usePeersStore = defineStore('peers', {
     nameOf: (state) => {
       const map = new Map<string, string>()
       for (const p of state.peers) map.set(p.nodeId, p.remark || p.nick)
-      return (nodeId: string): string => map.get(nodeId) ?? '未知节点'
+      return (nodeId: string): string => map.get(nodeId) ?? tr('未知节点')
     },
     byId: (state) => {
       const map = new Map(state.peers.map((p) => [p.nodeId, p]))

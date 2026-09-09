@@ -1,3 +1,4 @@
+import { systemMessage } from '../../i18n/messages'
 import { randomUUID } from 'node:crypto'
 import { EventEmitter } from 'node:events'
 import { readdirSync, statSync } from 'node:fs'
@@ -1313,7 +1314,7 @@ export class FilesService extends EventEmitter {
    */
   private announceShareUpload(transferId: string, peerId: string, fileCount: number): void {
     const convId = this.deps.convRepo.ensureSingle(peerId)
-    const name = this.deps.peerDisplayName?.(peerId) || '对方'
+    const name = this.deps.peerDisplayName?.(peerId) || ''
     const now = Date.now()
     const inserted = this.deps.msgRepo.insert({
       id: `share:${transferId}:uploaded`,
@@ -1321,14 +1322,13 @@ export class FilesService extends EventEmitter {
       senderId: peerId,
       isMine: false,
       kind: 'system',
-      content: `${name} 上传了 ${fileCount} 个文件到你的文件柜`,
-      fileRef: JSON.stringify({
+      ...systemMessage('share.uploaded', { actor: name ? { name } : { name: '', role: 'unknown' }, count: fileCount }, {
         transferId,
         name: '文件柜',
         size: 0,
         count: fileCount,
         dir: true
-      } satisfies FileRefView),
+      }),
       ts: now,
       status: 'sent'
     })

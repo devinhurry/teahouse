@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { tr } from '../utils/i18n'
 // 大图查看器：纯渲染层缩放/旋转/平移，图片源仍走 pantry-img://，另存为走既有 IPC。
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import {
@@ -77,24 +78,24 @@ const imageOcrCacheKey = computed(() => {
   return `${props.transferId}:${natural.value.width}x${natural.value.height}`
 })
 const ocrLabel = computed(() => {
-  if (ocrStatus.value === 'loading-source') return '准备识别'
-  if (ocrStatus.value === 'recognizing') return `识别中 ${Math.round(ocrProgress.value * 100)}%`
+  if (ocrStatus.value === 'loading-source') return tr('准备识别')
+  if (ocrStatus.value === 'recognizing') return tr('识别中 {0}%', { 0: Math.round(ocrProgress.value * 100) })
   if (ocrStatus.value === 'ready') {
     if (ocrMessage.value) return ocrMessage.value
-    if (!ocrText.value.trim()) return '未识别到文字'
-    return textLayerVisible.value ? '可在图上选字' : '文字选择已隐藏'
+    if (!ocrText.value.trim()) return tr('未识别到文字')
+    return textLayerVisible.value ? tr('可在图上选字') : tr('文字选择已隐藏')
   }
-  if (ocrStatus.value === 'error') return ocrMessage.value || '识别失败'
-  return '识别文字'
+  if (ocrStatus.value === 'error') return ocrMessage.value || tr('识别失败')
+  return tr('识别文字')
 })
 const ocrButtonTitle = computed(() => {
-  if (isOcrBusy.value) return '取消识别'
+  if (isOcrBusy.value) return tr('取消识别')
   if (ocrStatus.value === 'ready' && ocrLines.value.length) {
-    return textLayerVisible.value ? '隐藏文字选择层' : '显示文字选择层'
+    return textLayerVisible.value ? tr('隐藏文字选择层') : tr('显示文字选择层')
   }
-  if (ocrStatus.value === 'ready') return '重新识别文字'
-  if (ocrStatus.value === 'error') return '重试识别文字'
-  return '识别文字'
+  if (ocrStatus.value === 'ready') return tr('重新识别文字')
+  if (ocrStatus.value === 'error') return tr('重试识别文字')
+  return tr('识别文字')
 })
 const imageStyle = computed(() => {
   const width = Math.max(1, Math.round(natural.value.width * zoom.value))
@@ -232,7 +233,7 @@ async function startOcr(): Promise<void> {
     if (token !== ocrToken) return
     if (!source) {
       ocrStatus.value = 'error'
-      ocrMessage.value = '无法读取图片'
+      ocrMessage.value = tr('无法读取图片')
       return
     }
     ocrStatus.value = 'recognizing'
@@ -253,7 +254,7 @@ async function startOcr(): Promise<void> {
     console.warn('[image-ocr] 识别失败：', err instanceof Error ? err.message : String(err))
     ocrStatus.value = 'error'
     ocrProgress.value = 0
-    ocrMessage.value = '识别失败'
+    ocrMessage.value = tr('识别失败')
   }
 }
 
@@ -290,7 +291,7 @@ function applyOcrResult(result: OcrResult): void {
   textLayerVisible.value = result.lines.length > 0
   ocrStatus.value = 'ready'
   ocrProgress.value = 1
-  ocrMessage.value = ocrText.value.trim() ? '' : '未识别到文字'
+  ocrMessage.value = ocrText.value.trim() ? '' : tr('未识别到文字')
 }
 
 function clearOcrCopyFeedback(): void {
@@ -334,11 +335,11 @@ async function copyOcr(selected: boolean): Promise<void> {
     if (selected) await textLayerEl.value?.copySelection()
     else await navigator.clipboard.writeText(ocrText.value)
     if (token !== ocrToken) return
-    ocrMessage.value = selected ? '已复制所选文字' : '已复制全部'
+    ocrMessage.value = selected ? tr('已复制所选文字') : tr('已复制全部')
     clearOcrCopyFeedback()
     ocrCopyTimer = setTimeout(() => { ocrMessage.value = '' }, 1400)
   } catch {
-    if (token === ocrToken) ocrMessage.value = '复制失败'
+    if (token === ocrToken) ocrMessage.value = tr('复制失败')
   }
 }
 
@@ -513,7 +514,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="viewer" aria-label="图片查看器">
+  <div class="viewer" :aria-label="tr('图片查看器')">
     <main
       class="viewer-stage"
       :class="{ grabbing: isDragging, 'selecting-text': isSelectingText }"
@@ -524,8 +525,8 @@ onBeforeUnmount(() => {
       @pointercancel="finishDrag"
       @dblclick.stop="toggleActualSize($event)"
     >
-      <div v-if="loading" class="viewer-state">图片加载中…</div>
-      <div v-else-if="broken" class="viewer-state error">图片不可用</div>
+      <div v-if="loading" class="viewer-state">{{ tr('图片加载中…') }}</div>
+      <div v-else-if="broken" class="viewer-state error">{{ tr('图片不可用') }}</div>
       <div
         ref="imagePlaneEl"
         class="image-plane"
@@ -536,7 +537,7 @@ onBeforeUnmount(() => {
           :key="src"
           :src="src"
           class="full"
-          alt="[图片]"
+          :alt="tr('[图片]')"
           draggable="false"
           @load="onImageLoad"
           @error="onImageError"
@@ -555,12 +556,12 @@ onBeforeUnmount(() => {
       </div>
     </main>
 
-    <nav class="viewer-navigation" aria-label="聊天图片切换" :aria-busy="navigating">
+    <nav class="viewer-navigation" :aria-label="tr('聊天图片切换')" :aria-busy="navigating">
       <button
         class="navigate previous"
         type="button"
-        title="上一张"
-        aria-label="上一张"
+        :title="tr('上一张')"
+        :aria-label="tr('上一张')"
         :disabled="!hasPrevious || navigating"
         @click="emit('navigate', 'previous')"
       >
@@ -569,8 +570,8 @@ onBeforeUnmount(() => {
       <button
         class="navigate next"
         type="button"
-        title="下一张"
-        aria-label="下一张"
+        :title="tr('下一张')"
+        :aria-label="tr('下一张')"
         :disabled="!hasNext || navigating"
         @click="emit('navigate', 'next')"
       >
@@ -579,36 +580,36 @@ onBeforeUnmount(() => {
     </nav>
     <div v-if="navigationError" class="navigation-error" role="status">
       {{ navigationError }}
-      <button type="button" :disabled="navigating" @click="emit('retryNavigation')">重试</button>
+      <button type="button" :disabled="navigating" @click="emit('retryNavigation')">{{ tr('重试') }}</button>
     </div>
 
-    <footer class="viewer-menu" role="toolbar" aria-label="图片查看工具" @click.stop>
-      <span class="zoom-readout">{{ broken ? '不可用' : loading ? '加载中' : zoomLabel }}</span>
-      <button class="tool" type="button" title="缩小" :disabled="!canUseImage" @click="zoomOut">
+    <footer class="viewer-menu" role="toolbar" :aria-label="tr('图片查看工具')" @click.stop>
+      <span class="zoom-readout">{{ broken ? tr('不可用') : loading ? tr('加载中') : zoomLabel }}</span>
+      <button class="tool" type="button" :title="tr('缩小')" :disabled="!canUseImage" @click="zoomOut">
         <PantryIcon name="zoom-out" :size="17" />
       </button>
-      <button class="tool" type="button" title="放大" :disabled="!canUseImage" @click="zoomIn">
+      <button class="tool" type="button" :title="tr('放大')" :disabled="!canUseImage" @click="zoomIn">
         <PantryIcon name="zoom-in" :size="17" />
       </button>
       <button
         class="tool"
         :class="{ active: viewMode === 'fit' }"
         type="button"
-        title="适应窗口"
+        :title="tr('适应窗口')"
         :disabled="!canUseImage"
         :aria-pressed="viewMode === 'fit'"
         @click="applyFit"
       >
         <PantryIcon name="fit-screen" :size="17" />
       </button>
-      <button class="tool" type="button" title="原始大小" :disabled="!canUseImage" @click="applyActualSize">
+      <button class="tool" type="button" :title="tr('原始大小')" :disabled="!canUseImage" @click="applyActualSize">
         <PantryIcon name="actual-size" :size="17" />
       </button>
       <span class="tool-divider" aria-hidden="true"></span>
-      <button class="tool" type="button" title="向左旋转" :disabled="!canUseImage" @click="rotateImage(-90)">
+      <button class="tool" type="button" :title="tr('向左旋转')" :disabled="!canUseImage" @click="rotateImage(-90)">
         <PantryIcon name="rotate-left" :size="17" />
       </button>
-      <button class="tool" type="button" title="向右旋转" :disabled="!canUseImage" @click="rotateImage(90)">
+      <button class="tool" type="button" :title="tr('向右旋转')" :disabled="!canUseImage" @click="rotateImage(90)">
         <PantryIcon name="rotate-right" :size="17" />
       </button>
       <span class="tool-divider" aria-hidden="true"></span>
@@ -629,15 +630,15 @@ onBeforeUnmount(() => {
         v-if="hasTextSelection"
         class="tool copy-selection"
         type="button"
-        title="复制所选文字"
+        :title="tr('复制所选文字')"
         @pointerdown.prevent
         @click="copyOcr(true)"
-      >复制所选</button>
-      <button class="tool" type="button" title="复制全部文字" :disabled="!canCopyAllOcr" @pointerdown.prevent @click="copyOcr(false)">
+      >{{ tr('复制所选') }}</button>
+      <button class="tool" type="button" :title="tr('复制全部文字')" :disabled="!canCopyAllOcr" @pointerdown.prevent @click="copyOcr(false)">
         <PantryIcon name="copy" :size="17" />
       </button>
       <span class="tool-divider" aria-hidden="true"></span>
-      <button class="tool" type="button" title="另存为" :disabled="saving || !canUseImage" @click="saveAs">
+      <button class="tool" type="button" :title="tr('另存为')" :disabled="saving || !canUseImage" @click="saveAs">
         <PantryIcon :name="saving ? 'loader' : 'save'" :size="17" />
       </button>
     </footer>

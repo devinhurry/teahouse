@@ -1,3 +1,4 @@
+import { tr } from '../../i18n'
 import { app, BrowserWindow, screen } from 'electron'
 import { join } from 'node:path'
 import { IpcEvents, type SettingsView } from '../../shared/ipc'
@@ -57,6 +58,10 @@ function notifySettingsWindowState(parent: BrowserWindow | null, open: boolean):
   parent.webContents.send(IpcEvents.settingsWindowState, open)
 }
 
+export function syncSettingsWindowLanguage(): void {
+  win?.setTitle(tr('设置 - 茶话间'))
+}
+
 export function syncSettingsWindowZoom(fontScale: SettingsView['fontScale']): void {
   currentFontScale = fontScale
   applyWindowZoom(win?.webContents, fontScale)
@@ -82,7 +87,7 @@ export function openSettingsWindow(
     minimizable: false,
     maximizable: false,
     show: false,
-    title: '设置 - 茶话间',
+    title: tr('设置 - 茶话间'),
     parent: activeParent ?? undefined,
     ...(process.platform !== 'darwin' && activeParent ? { modal: true } : {}),
     hasShadow: true,

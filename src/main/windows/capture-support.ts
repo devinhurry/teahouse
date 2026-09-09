@@ -1,3 +1,4 @@
+import { tr } from '../../i18n'
 import type { CaptureFailureNotice, CaptureFailureReason } from '../../shared/ipc'
 
 const DEFAULT_HIDE_EVENT_TIMEOUT_MS = 500
@@ -89,32 +90,32 @@ export function captureFailureNotice(
   if (reason === 'window-hide-failed') {
     return {
       reason,
-      message: '截图前未能完全隐藏茶话间窗口，请重试；仍失败可使用系统截图。'
+      message: tr('截图前未能完全隐藏茶话间窗口，请重试；仍失败可使用系统截图。')
     }
   }
   if (reason === 'screen-unavailable' && wayland) {
     return {
       reason,
       message:
-        'Wayland 未能提供可用屏幕。请在系统授权窗口选择屏幕，或使用系统截图后在聊天框按 Ctrl+V 发送。'
+        tr('Wayland 未能提供可用屏幕。请在系统授权窗口选择屏幕，或使用系统截图后在聊天框按 Ctrl+V 发送。')
     }
   }
   if (reason === 'screen-unavailable') {
     return {
       reason,
-      message: '未找到可截图的屏幕，请重试；仍失败可使用系统截图后在聊天框按 Ctrl+V 发送。'
+      message: tr('未找到可截图的屏幕，请重试；仍失败可使用系统截图后在聊天框按 Ctrl+V 发送。')
     }
   }
   if (reason === 'image-empty') {
     return {
       reason,
-      message: '系统返回了空白截图，请重试；仍失败可使用系统截图后在聊天框按 Ctrl+V 发送。'
+      message: tr('系统返回了空白截图，请重试；仍失败可使用系统截图后在聊天框按 Ctrl+V 发送。')
     }
   }
   return {
     reason,
     message: wayland
-      ? '截图失败。请检查 Wayland 屏幕共享授权，或使用系统截图后在聊天框按 Ctrl+V 发送。'
-      : '截图失败，请重试；仍失败可使用系统截图后在聊天框按 Ctrl+V 发送。'
+      ? tr('截图失败。请检查 Wayland 屏幕共享授权，或使用系统截图后在聊天框按 Ctrl+V 发送。')
+      : tr('截图失败，请重试；仍失败可使用系统截图后在聊天框按 Ctrl+V 发送。')
   }
 }

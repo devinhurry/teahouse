@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { tr } from '../utils/i18n'
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import type { OcrLine } from '../utils/ocr'
 import {
@@ -193,7 +194,7 @@ defineExpose({ copySelection, clearSelection })
     class="image-text-layer"
     :style="layerStyle"
     role="document"
-    aria-label="图片识别文字"
+    :aria-label="tr('图片识别文字')"
     @pointerdown.stop="onTextPointerDown"
     @dblclick.stop
   >

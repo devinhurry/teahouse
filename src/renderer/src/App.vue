@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
-import { darkTheme, dateZhCN, NButton, NConfigProvider, NInput, zhCN } from 'naive-ui'
+import { tr, language } from './utils/i18n'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { darkTheme, dateZhCN, dateEnUS, enUS, NButton, NConfigProvider, NInput, zhCN } from 'naive-ui'
 import type {
   AppInfo,
   CaptureFailureNotice,
@@ -86,10 +87,10 @@ const updateStore = useUpdateStore()
 const showUpdatePanel = ref(false)
 const updateRequesting = ref(false)
 const updateRequestMsg = ref('')
-const updateHelpText = '将从内网同平台节点请求安装包，不访问外网；同步更新只发起索包，不会静默安装。'
+const updateHelpText = computed(() => (tr('将从内网同平台节点请求安装包，不访问外网；同步更新只发起索包，不会静默安装。')))
 const updateHintLabel = computed(() =>
   updateStore.available
-    ? `内网有新版 v${updateStore.available.version}（来自 ${updateStore.available.fromName}）`
+    ? tr('内网有新版 v{0}（来自 {1}）', { 0: updateStore.available.version, 1: updateStore.available.fromName })
     : ''
 )
 function toggleUpdatePanel(event?: Event): void {
@@ -102,9 +103,9 @@ async function requestUpdatePackage(): Promise<void> {
   updateRequestMsg.value = ''
   try {
     const ok = await window.pantry.requestUpdate()
-    updateRequestMsg.value = ok ? '请求已发出。' : '请求未送达，请稍后重试。'
+    updateRequestMsg.value = ok ? tr('请求已发出。') : tr('请求未送达，请稍后重试。')
   } catch {
-    updateRequestMsg.value = '请求更新失败，请稍后重试。'
+    updateRequestMsg.value = tr('请求更新失败，请稍后重试。')
   } finally {
     updateRequesting.value = false
   }
@@ -155,12 +156,12 @@ const scanPercent = computed(() => {
 })
 const scanButtonTitle = computed(() => {
   if (scanProgress.value.running) {
-    return `扫描中 ${scanProgress.value.done}/${scanProgress.value.total}`
+    return tr('扫描中 {0}/{1}', { 0: scanProgress.value.done, 1: scanProgress.value.total })
   }
-  if (!hasScanRanges.value) return '没有已保存扫描网段'
-  return '刷新全局用户'
+  if (!hasScanRanges.value) return tr('没有已保存扫描网段')
+  return tr('刷新全局用户')
 })
-const scanProgressTitle = computed(() => `扫描进度 ${scanPercent.value}%`)
+const scanProgressTitle = computed(() => tr('扫描进度 {0}%', { 0: scanPercent.value }))
 
 // 全量刷新二次确认（决议 #197）：只展示 CIDR 摘要，最多 4 条，超出折叠；不堆说明文案
 const SCAN_CONFIRM_PREVIEW_LIMIT = 4
@@ -181,23 +182,25 @@ const scanConfirmExtra = computed(() =>
 const scanConfirmSub = computed(() => {
   const n = scanConfirmTotal.value
   if (n <= 0) return ''
-  return n === 1 ? '将探测 1 个网段' : `将探测 ${n} 个网段`
+  return n === 1 ? tr('将探测 1 个网段') : tr('将探测 {0} 个网段', { 0: n })
 })
-const selfName = computed(() => settings.value?.nick.trim() || '未设置昵称')
+const selfName = computed(() => settings.value?.nick.trim() || tr('未设置昵称'))
 const selfOrgPath = computed(() => {
   const parts = [settings.value?.company, settings.value?.dept, settings.value?.team]
     .map((item) => item?.trim())
     .filter((item): item is string => Boolean(item))
-  return parts.length > 0 ? parts.join(' / ') : '未设置组织信息'
+  return parts.length > 0 ? parts.join(' / ') : tr('未设置组织信息')
 })
-const selfIpText = computed(() => info.value?.localIp || '正在获取')
-const selfHostText = computed(() => settings.value?.host.trim() || '主机名未加载')
-const selfNodeShort = computed(() => info.value?.nodeId.slice(0, 8) ?? '加载中')
+const selfIpText = computed(() => info.value?.localIp || tr('正在获取'))
+const selfHostText = computed(() => settings.value?.host.trim() || tr('主机名未加载'))
+const selfNodeShort = computed(() => info.value?.nodeId.slice(0, 8) ?? tr('加载中'))
 const activeRailHint = ref<string | null>(null)
+
+watch(language, () => applyWindowTitle(settings.value))
 
 function applyWindowTitle(next: SettingsView | null): void {
   const nick = next?.setupDone ? next.nick.trim() : ''
-  document.title = nick ? `${nick}-🍵Teahouse` : '茶话间'
+  document.title = nick ? `${nick}-🍵Teahouse` : tr('茶话间')
 }
 
 function onVisibilityChange(): void {
@@ -393,8 +396,8 @@ onUnmounted(() => {
     abstract
     :theme="naiveTheme"
     :theme-overrides="naiveThemeOverrides"
-    :locale="zhCN"
-    :date-locale="dateZhCN"
+    :locale="language === 'en' ? enUS : zhCN"
+    :date-locale="language === 'en' ? dateEnUS : dateZhCN"
   >
   <SetupWizard v-if="showWizard && settings" :settings="settings" @done="showWizard = false" />
   <!-- 沉浸式无标题栏（决议 #49/#52）：顶部 32px 隐形拖拽带 + Win/Linux 自绘窗口控制按钮 -->
@@ -405,12 +408,12 @@ onUnmounted(() => {
   </Transition>
   <div class="shell">
     <nav class="rail">
-      <div class="avatar-wrap" aria-label="我的信息">
+      <div class="avatar-wrap" :aria-label="tr('我的信息')">
         <AvatarMark
           class="avatar"
           :avatar="settings?.avatar ?? -1"
           :avatar-hash="settings?.avatarHash"
-          :name="settings?.nick ?? '茶'"
+          :name="settings?.nick ?? tr('茶')"
         />
         <div class="self-card" aria-hidden="true">
           <div class="self-card-head">
@@ -418,30 +421,30 @@ onUnmounted(() => {
               class="self-card-avatar"
               :avatar="settings?.avatar ?? -1"
               :avatar-hash="settings?.avatarHash"
-              :name="settings?.nick ?? '茶'"
+              :name="settings?.nick ?? tr('茶')"
             />
             <div class="self-card-title">
               <div class="self-card-name">{{ selfName }}</div>
-              <div class="self-card-subtitle">本机账户</div>
+              <div class="self-card-subtitle">{{ tr('本机账户') }}</div>
             </div>
           </div>
           <div class="self-card-body">
             <div class="self-card-network">
-              <span class="self-card-network-label">本机 IP</span>
+              <span class="self-card-network-label">{{ tr('本机 IP') }}</span>
               <span class="self-card-ip">{{ selfIpText }}</span>
             </div>
             <dl class="self-card-details">
               <div class="self-card-detail">
-                <dt>组织</dt>
+                <dt>{{ tr('组织') }}</dt>
                 <dd>{{ selfOrgPath }}</dd>
               </div>
               <div class="self-card-detail">
-                <dt>设备</dt>
+                <dt>{{ tr('设备') }}</dt>
                 <dd>{{ selfHostText }}</dd>
               </div>
             </dl>
             <div class="self-card-node">
-              <span>节点 ID</span>
+              <span>{{ tr('节点 ID') }}</span>
               <strong>{{ selfNodeShort }}</strong>
             </div>
           </div>
@@ -451,8 +454,8 @@ onUnmounted(() => {
         type="button"
         class="rail-btn rail-hint"
         :class="{ active: tab === 'chat', 'show-hint': activeRailHint === 'chat' }"
-        data-label="聊天"
-        aria-label="聊天"
+        :data-label="tr('聊天')"
+        :aria-label="tr('聊天')"
         @pointermove="scheduleRailHint('chat')"
         @pointerleave="hideRailHint('chat')"
         @click="activateTab('chat', $event)"
@@ -466,8 +469,8 @@ onUnmounted(() => {
         type="button"
         class="rail-btn rail-hint"
         :class="{ active: tab === 'contacts', 'show-hint': activeRailHint === 'contacts' }"
-        data-label="通讯录"
-        aria-label="通讯录"
+        :data-label="tr('通讯录')"
+        :aria-label="tr('通讯录')"
         @pointermove="scheduleRailHint('contacts')"
         @pointerleave="hideRailHint('contacts')"
         @click="activateTab('contacts', $event)"
@@ -499,8 +502,8 @@ onUnmounted(() => {
         type="button"
         class="rail-btn rail-hint"
         :class="{ active: tab === 'cabinet', 'show-hint': activeRailHint === 'cabinet' }"
-        data-label="文件柜"
-        aria-label="文件柜"
+        :data-label="tr('文件柜')"
+        :aria-label="tr('文件柜')"
         @pointermove="scheduleRailHint('cabinet')"
         @pointerleave="hideRailHint('cabinet')"
         @click="openCabinet($event)"
@@ -534,8 +537,8 @@ onUnmounted(() => {
         type="button"
         class="rail-btn rail-hint"
         :class="{ 'show-hint': activeRailHint === 'settings' }"
-        data-label="设置"
-        aria-label="设置"
+        :data-label="tr('设置')"
+        :aria-label="tr('设置')"
         @pointermove="scheduleRailHint('settings')"
         @pointerleave="hideRailHint('settings')"
         @click="openSettings($event)"
@@ -546,9 +549,9 @@ onUnmounted(() => {
 
     <div v-if="showUpdatePanel && updateStore.available" class="update-pop" role="dialog">
       <div class="update-pop-head">
-        <span>内网有新版</span>
+        <span>{{ tr('内网有新版') }}</span>
         <span class="update-pop-help">
-          <button type="button" class="update-help-trigger" aria-label="内网更新说明" aria-describedby="main-update-help">
+          <button type="button" class="update-help-trigger" :aria-label="tr('内网更新说明')" aria-describedby="main-update-help">
             ?
           </button>
           <span id="main-update-help" class="update-help-pop" role="tooltip">
@@ -557,8 +560,8 @@ onUnmounted(() => {
         </span>
       </div>
       <div class="update-pop-ver">v{{ updateStore.available.version }}</div>
-      <div class="update-pop-from">来自 {{ updateStore.available.fromName }}</div>
-      <div class="update-pop-cur">当前版本 v{{ updateStore.available.currentVersion }}</div>
+      <div class="update-pop-from">{{ tr('来自 {0}', { 0: updateStore.available.fromName }) }}</div>
+      <div class="update-pop-cur">{{ tr('当前版本 v{0}', { 0: updateStore.available.currentVersion }) }}</div>
       <p v-if="updateRequestMsg" class="update-pop-hint">{{ updateRequestMsg }}</p>
       <NButton
         type="primary"
@@ -569,7 +572,7 @@ onUnmounted(() => {
         :aria-busy="updateRequesting"
         @click="requestUpdatePackage"
       >
-        {{ updateRequesting ? '请求中' : '同步更新' }}
+        {{ updateRequesting ? tr('请求中') : tr('同步更新') }}
       </NButton>
     </div>
 
@@ -580,8 +583,8 @@ onUnmounted(() => {
           class="search"
           size="small"
           clearable
-          aria-label="搜索联系人、讨论组和聊天记录"
-          placeholder="搜索"
+          :aria-label="tr('搜索联系人、讨论组和聊天记录')"
+          :placeholder="tr('搜索')"
         >
           <template #prefix><PantryIcon name="search" :size="15" /></template>
         </NInput>
@@ -595,8 +598,8 @@ onUnmounted(() => {
           size="small"
           quaternary
           circle
-          title="发起讨论组"
-          aria-label="发起讨论组"
+          :title="tr('发起讨论组')"
+          :aria-label="tr('发起讨论组')"
           @click="showGroupCreator = true"
         >
           <PantryIcon name="plus" :size="17" />
@@ -627,10 +630,10 @@ onUnmounted(() => {
       />
       <div v-else class="empty">
         <PantryBrandLogo variant="color" :size="92" class="empty-logo" />
-        <div class="brand-title">茶话间</div>
-        <p class="quote">{{ quote.text }}</p>
-        <p class="quote-author">{{ quote.author }}</p>
-        <p class="hint">在「通讯录」里选个人，开始第一句话</p>
+        <div class="brand-title">{{ tr('茶话间') }}</div>
+        <p class="quote">{{ tr(quote.text) }}</p>
+        <p class="quote-author">{{ tr(quote.author) }}</p>
+        <p class="hint">{{ tr('在「通讯录」里选个人，开始第一句话') }}</p>
       </div>
     </main>
   </div>
@@ -651,29 +654,25 @@ onUnmounted(() => {
       <div class="scan-confirm-mark" aria-hidden="true">
         <PantryIcon name="warning" :size="22" />
       </div>
-      <h3 id="scan-confirm-title">刷新全局用户</h3>
+      <h3 id="scan-confirm-title">{{ tr('刷新全局用户') }}</h3>
       <p id="scan-confirm-sub" class="scan-confirm-sub">{{ scanConfirmSub }}</p>
-      <ul class="scan-confirm-list" aria-label="将扫描的网段">
+      <ul class="scan-confirm-list" :aria-label="tr('将扫描的网段')">
         <li v-for="cidr in scanConfirmPreview" :key="cidr">
           <code>{{ cidr }}</code>
         </li>
-        <li v-if="scanConfirmExtra > 0" class="scan-confirm-more">另 {{ scanConfirmExtra }} 个</li>
+        <li v-if="scanConfirmExtra > 0" class="scan-confirm-more">{{ tr('另 {0} 个', { 0: scanConfirmExtra }) }}</li>
       </ul>
       <div class="scan-confirm-actions">
-        <NButton size="small" secondary @click="cancelScanConfirm">取消</NButton>
-        <NButton type="primary" size="small" @click="confirmRefreshAllUsers">
-          开始扫描
-        </NButton>
+        <NButton size="small" secondary @click="cancelScanConfirm">{{ tr('取消') }}</NButton>
+        <NButton type="primary" size="small" @click="confirmRefreshAllUsers">{{ tr('开始扫描') }}</NButton>
       </div>
     </div>
   </div>
 
   <!-- 移除聊天后的 10 秒撤回提示（决议 #125）：倒计时结束才真正删除聊天记录 -->
   <div v-if="chatStore.pendingRemoval" class="undo-toast" role="status">
-    <span class="undo-text">已删除与「{{ chatStore.pendingRemoval.name }}」的聊天记录</span>
-    <button type="button" class="undo-btn" @click="chatStore.undoRemoveConversation()">
-      撤回 {{ chatStore.pendingRemoval.secondsLeft }}s
-    </button>
+    <span class="undo-text">{{ tr('已删除与「{0}」的聊天记录', { 0: chatStore.pendingRemoval.name }) }}</span>
+    <button type="button" class="undo-btn" @click="chatStore.undoRemoveConversation()">{{ tr('撤回 {0}s', { 0: chatStore.pendingRemoval.secondsLeft }) }}</button>
   </div>
   <Transition name="capture-toast">
     <div
@@ -684,7 +683,7 @@ onUnmounted(() => {
     >
       <PantryIcon name="warning" :size="18" />
       <span>{{ captureNotice.message }}</span>
-      <button type="button" aria-label="关闭截图提示" @click="dismissCaptureFailure">×</button>
+      <button type="button" :aria-label="tr('关闭截图提示')" @click="dismissCaptureFailure">×</button>
     </div>
   </Transition>
   </NConfigProvider>

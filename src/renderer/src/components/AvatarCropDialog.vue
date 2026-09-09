@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { tr } from '../utils/i18n'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { AvatarSourcePick } from '../../../shared/ipc'
 import {
@@ -74,7 +75,7 @@ function imageReady(): void {
 
 function imageFailed(): void {
   imageLoaded.value = false
-  localError.value = '无法解码这张图片'
+  localError.value = tr('无法解码这张图片')
 }
 
 function setZoom(next: number, event?: WheelEvent): void {
@@ -134,7 +135,7 @@ async function apply(): Promise<void> {
       await renderAvatarWebp(props.source.bytes, props.source.mime, cropState.value)
     )
   } catch (error) {
-    localError.value = error instanceof Error ? error.message : '处理图片失败'
+    localError.value = error instanceof Error ? error.message : tr('处理图片失败')
   }
 }
 
@@ -174,10 +175,10 @@ onBeforeUnmount(() => {
       >
         <header>
           <div>
-            <h2 id="avatar-crop-title">{{ title || '调整头像' }}</h2>
-            <p>拖动图片并缩放，让头像落在圆形区域内。</p>
+            <h2 id="avatar-crop-title">{{ title || tr('调整头像') }}</h2>
+            <p>{{ tr('拖动图片并缩放，让头像落在圆形区域内。') }}</p>
           </div>
-          <button class="icon-button" title="关闭" :disabled="busy" @click="requestClose">
+          <button class="icon-button" :title="tr('关闭')" :disabled="busy" @click="requestClose">
             <PantryIcon name="x" :size="16" />
           </button>
         </header>
@@ -191,7 +192,7 @@ onBeforeUnmount(() => {
           <img
             :src="imageUrl"
             :style="imageStyle"
-            alt="待裁剪头像"
+            :alt="tr('待裁剪头像')"
             draggable="false"
             @load="imageReady"
             @error="imageFailed"
@@ -201,7 +202,7 @@ onBeforeUnmount(() => {
         </div>
 
         <div class="zoom-row">
-          <button title="缩小" :disabled="busy || zoom <= 1" @click="setZoom(zoom / ZOOM_STEP)">
+          <button :title="tr('缩小')" :disabled="busy || zoom <= 1" @click="setZoom(zoom / ZOOM_STEP)">
             <PantryIcon name="minus" :size="14" />
           </button>
           <input
@@ -210,21 +211,21 @@ onBeforeUnmount(() => {
             min="100"
             :max="Math.round(maxZoom * 100)"
             step="1"
-            aria-label="头像缩放"
+            :aria-label="tr('头像缩放')"
             :disabled="busy || maxZoom <= 1"
             @input="setZoom(Number(($event.target as HTMLInputElement).value) / 100)"
           />
-          <button title="放大" :disabled="busy || zoom >= maxZoom" @click="setZoom(zoom * ZOOM_STEP)">
+          <button :title="tr('放大')" :disabled="busy || zoom >= maxZoom" @click="setZoom(zoom * ZOOM_STEP)">
             <PantryIcon name="plus" :size="14" />
           </button>
-          <button class="reset" :disabled="busy" @click="reset">重置</button>
+          <button class="reset" :disabled="busy" @click="reset">{{ tr('重置') }}</button>
         </div>
 
         <p v-if="visibleError" class="crop-error" role="alert">{{ visibleError }}</p>
         <footer>
-          <button class="secondary" :disabled="busy" @click="requestClose">取消</button>
+          <button class="secondary" :disabled="busy" @click="requestClose">{{ tr('取消') }}</button>
           <button class="primary" :disabled="busy || !imageLoaded" @click="apply">
-            {{ busy ? '正在保存…' : '应用头像' }}
+            {{ busy ? tr('正在保存…') : tr('应用头像') }}
           </button>
         </footer>
       </section>

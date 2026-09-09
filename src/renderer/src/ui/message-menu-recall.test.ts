@@ -20,7 +20,7 @@ describe('消息右键菜单撤回项', () => {
     ['图片 / 表情', imageBubbleSource, '.ctx button', '{{ recallMeta }}']
   ])('%s 菜单把操作名与倒计时拆成同一行的左右两列', (_, source, selector, meta) => {
     expect(source).toContain('class="danger recall-action"')
-    expect(source).toContain('<span>撤回</span>')
+    expect(source).toContain("<span>{{ tr('撤回') }}</span>")
     expect(source).toContain('class="recall-action-meta"')
     expect(source).toContain(meta)
 

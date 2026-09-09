@@ -1,3 +1,4 @@
+import { isLanguage, setLanguage, tr } from '../i18n'
 import {
   app,
   BrowserWindow,
@@ -102,8 +103,8 @@ import {
   saveProfile,
   type AppState
 } from './store/app-state'
-import { setupTray, stopTrayUnreadFlash, updateTrayUnread } from './windows/tray'
-import { openSettingsWindow, syncSettingsWindowZoom } from './windows/settings-window'
+import { refreshTrayLanguage, setupTray, stopTrayUnreadFlash, updateTrayUnread } from './windows/tray'
+import { syncSettingsWindowLanguage, openSettingsWindow, syncSettingsWindowZoom } from './windows/settings-window'
 import {
   closeCaptureWindow,
   openCaptureWindow,
@@ -619,7 +620,7 @@ if (!gotLock) {
 
   function mainWindowTitle(): string {
     const nick = appState?.config.setupDone ? appState.config.nick.trim() : ''
-    return nick ? `${nick}-🍵Teahouse` : '茶话间'
+    return nick ? `${nick}-🍵Teahouse` : tr('茶话间')
   }
 
   function updateMainWindowTitle(): void {
@@ -1184,7 +1185,7 @@ if (!gotLock) {
   function acceptSharedScanRanges(fromNodeId: string, ranges: ScanRangeSummary[]): void {
     const state = appState
     if (!state) return
-    const sourceName = resolvePeerDisplayName(fromNodeId) || '同事'
+    const sourceName = resolvePeerDisplayName(fromNodeId) || tr('同事')
     const accepted = addSharedScanRanges(state, ranges, {
       nodeId: fromNodeId,
       name: sourceName
@@ -1205,7 +1206,7 @@ if (!gotLock) {
         return { host, port: Number(port) || udpPort }
       })
     ]
-    const udp = new UdpChannel({ port: udpPort })
+    const udp = new UdpChannel({ port: udpPort, ...(process.env['PANTRY_SMOKE'] ? { bindAddress: '127.0.0.1', broadcastTargets: [] } : {}) })
     registry = new PeerRegistry(state.nodeId)
     // 时钟偏移矫正（决议 #65）：发现层观测各节点时钟差，chat/groups 显示时矫正到本机钟
     const peerClock = new PeerClock()
@@ -1296,6 +1297,7 @@ if (!gotLock) {
         transferRepo: new TransferRepo(db),
         groupRepo,
         tcpPort,
+        ...(process.env['PANTRY_SMOKE'] ? { bindAddress: '127.0.0.1' } : {}),
         getSaveDir: () =>
           appState?.config.fileDir || defaultFileDir(),
         getImagesDir: imagesDir,
@@ -1439,7 +1441,7 @@ if (!gotLock) {
       try {
         const icon = systemNotificationIcon()
         new Notification({
-          title: '茶话间',
+          title: tr('茶话间'),
           body: notice.message,
           ...(icon ? { icon } : {})
         }).show()
@@ -1532,7 +1534,7 @@ if (!gotLock) {
     if (mainWindow && mainWindow.isFocused() && mainWindow.isVisible()) return
     if (!Notification.isSupported()) return
 
-    const senderNick = registry?.get(msg.senderId)?.profile.nick ?? '新成员'
+    const senderNick = registry?.get(msg.senderId)?.profile.nick ?? tr('新成员')
     const hidePreview = appState?.config.showMessagePreview === false
     const groupName = msg.convId.startsWith('group:')
       ? groups?.get(msg.convId.slice(6))?.name
@@ -1848,6 +1850,7 @@ if (!gotLock) {
       hideOnCapture: c?.hideOnCapture !== false,
       autoLaunch: c?.autoLaunch !== false,
       closeToTray: c?.closeToTray !== false,
+      language: c?.language ?? 'zh-CN',
       theme: c?.theme === 'dark' ? 'dark' : 'light',
       fontScale,
       showMessagePreview: c?.showMessagePreview !== false,
@@ -1929,34 +1932,34 @@ if (!gotLock) {
       const owner = BrowserWindow.fromWebContents(event.sender)
       const result = owner
         ? await dialog.showOpenDialog(owner, {
-            title: '选择头像图片',
+            title: tr('选择头像图片'),
             properties: ['openFile'],
-            filters: [{ name: '图片', extensions: AVATAR_PICKER_EXTENSIONS }]
+            filters: [{ name: tr('图片'), extensions: AVATAR_PICKER_EXTENSIONS }]
           })
         : await dialog.showOpenDialog({
-            title: '选择头像图片',
+            title: tr('选择头像图片'),
             properties: ['openFile'],
-            filters: [{ name: '图片', extensions: AVATAR_PICKER_EXTENSIONS }]
+            filters: [{ name: tr('图片'), extensions: AVATAR_PICKER_EXTENSIONS }]
           })
       if (result.canceled || result.filePaths.length === 0) return null
       const path = result.filePaths[0]
       try {
         const info = await stat(path)
-        if (!info.isFile() || info.size <= 0) return { ok: false, error: '无法读取这张图片' }
+        if (!info.isFile() || info.size <= 0) return { ok: false, error: tr('无法读取这张图片') }
         if (info.size > AVATAR_SOURCE_MAX_BYTES) {
-          return { ok: false, error: '头像图片不能超过 20 MiB' }
+          return { ok: false, error: tr('头像图片不能超过 20 MiB') }
         }
         const data = await readFile(path)
         const metadata = inspectImageMetadata(data)
         if (!metadata || metadata.format === 'gif') {
-          return { ok: false, error: '请选择 JPG、PNG、WebP 或 BMP 静态图片' }
+          return { ok: false, error: tr('请选择 JPG、PNG、WebP 或 BMP 静态图片') }
         }
-        if (metadata.animated) return { ok: false, error: '暂不支持动态头像' }
+        if (metadata.animated) return { ok: false, error: tr('暂不支持动态头像') }
         if (
           metadata.width > AVATAR_MAX_DIMENSION ||
           metadata.height > AVATAR_MAX_DIMENSION
         ) {
-          return { ok: false, error: '头像图片单边不能超过 8192 像素' }
+          return { ok: false, error: tr('头像图片单边不能超过 8192 像素') }
         }
         const bytes = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer
         return {
@@ -1967,7 +1970,7 @@ if (!gotLock) {
           height: metadata.height
         }
       } catch {
-        return { ok: false, error: '无法读取这张图片' }
+        return { ok: false, error: tr('无法读取这张图片') }
       }
     }
   )
@@ -2027,7 +2030,7 @@ if (!gotLock) {
   ipcMain.handle(IpcChannels.settingsPickDir, async (): Promise<string | null> => {
     if (!mainWindow) return null
     const result = await dialog.showOpenDialog(mainWindow, {
-      title: '选择文件保存位置',
+      title: tr('选择文件保存位置'),
       properties: ['openDirectory', 'createDirectory']
     })
     return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0]
@@ -2063,7 +2066,7 @@ if (!gotLock) {
       const owner = BrowserWindow.fromWebContents(event.sender) ?? mainWindow
       if (!owner) return { ok: true, canceled: true }
       const result = await dialog.showOpenDialog(owner, {
-        title: '选择共享给同事的目录',
+        title: tr('选择共享给同事的目录'),
         properties: ['openDirectory', 'createDirectory']
       })
       if (result.canceled || result.filePaths.length === 0) return { ok: true, canceled: true }
@@ -2202,7 +2205,7 @@ if (!gotLock) {
         const owner = BrowserWindow.fromWebContents(event.sender) ?? mainWindow
         if (!owner) return { ok: true, canceled: true }
         const picked = await dialog.showOpenDialog(owner, {
-          title: '选择下载到哪个目录',
+          title: tr('选择下载到哪个目录'),
           properties: ['openDirectory', 'createDirectory']
         })
         if (picked.canceled || picked.filePaths.length === 0) return { ok: true, canceled: true }
@@ -2247,7 +2250,7 @@ if (!gotLock) {
         const owner = BrowserWindow.fromWebContents(event.sender) ?? mainWindow
         if (!owner) return { ok: true, canceled: true }
         const picked = await dialog.showOpenDialog(owner, {
-          title: directory === true ? '选择要上传的文件夹' : '选择要上传的文件',
+          title: directory === true ? tr('选择要上传的文件夹') : tr('选择要上传的文件'),
           properties: directory === true ? ['openDirectory'] : ['openFile', 'multiSelections']
         })
         if (picked.canceled || picked.filePaths.length === 0) return { ok: true, canceled: true }
@@ -2302,7 +2305,7 @@ if (!gotLock) {
   ipcMain.handle(IpcChannels.filePick, async (event, directory: unknown): Promise<string[] | null> => {
     if (!mainWindow) return null
     const result = await dialog.showOpenDialog(mainWindow, {
-      title: directory === true ? '选择要发送的文件夹' : '选择要发送的文件',
+      title: directory === true ? tr('选择要发送的文件夹') : tr('选择要发送的文件'),
       properties: directory === true ? ['openDirectory'] : ['openFile', 'multiSelections']
     })
     if (result.canceled || result.filePaths.length === 0) return null
@@ -2314,9 +2317,9 @@ if (!gotLock) {
     if (!mainWindow) return null
     if (purpose !== undefined && purpose !== 'sticker') return null
     const result = await dialog.showOpenDialog(mainWindow, {
-      title: purpose === 'sticker' ? '选择要导入的表情' : '选择要发送的图片',
+      title: purpose === 'sticker' ? tr('选择要导入的表情') : tr('选择要发送的图片'),
       properties: ['openFile', 'multiSelections'],
-      filters: [{ name: '图片', extensions: IMAGE_PICKER_EXTENSIONS }]
+      filters: [{ name: tr('图片'), extensions: IMAGE_PICKER_EXTENSIONS }]
     })
     if (result.canceled || result.filePaths.length === 0) return null
     const paths = filterImagePickerPaths(result.filePaths)
@@ -2366,7 +2369,7 @@ if (!gotLock) {
     let dir: string | undefined
     if (saveAs === true && mainWindow) {
       const result = await dialog.showOpenDialog(mainWindow, {
-        title: '保存到…',
+        title: tr('保存到…'),
         properties: ['openDirectory', 'createDirectory']
       })
       if (result.canceled || result.filePaths.length === 0) return false
@@ -2408,8 +2411,8 @@ if (!gotLock) {
       const exportOptions = normalizeExportOptions(options)
       const ext = fmt === 'backup' ? 'pantry-bak' : fmt
       const result = await dialog.showSaveDialog(mainWindow, {
-        title: '导出聊天记录',
-        defaultPath: `茶话间导出-${new Date().toISOString().slice(0, 10)}.${ext}`,
+        title: tr('导出聊天记录'),
+        defaultPath: tr('茶话间导出-{0}.{1}', { 0: new Date().toISOString().slice(0, 10), 1: ext }),
         filters: [{ name: ext.toUpperCase(), extensions: [ext] }]
       })
       if (result.canceled || !result.filePath) return null
@@ -2426,7 +2429,7 @@ if (!gotLock) {
   ipcMain.handle(IpcChannels.dataImport, async (): Promise<DataImportResult | null> => {
     if (!mainWindow || !porter) return null
     const result = await dialog.showOpenDialog(mainWindow, {
-      title: '导入聊天记录备份',
+      title: tr('导入聊天记录备份'),
       properties: ['openFile'],
       filters: [{ name: 'Teahouse Backup', extensions: ['pantry-bak', 'zip'] }]
     })
@@ -2498,7 +2501,7 @@ if (!gotLock) {
     )
   })
 
-  ipcMain.handle(IpcChannels.settingsSaveApp, (_event, patch: unknown): SettingsView => {
+  ipcMain.handle(IpcChannels.settingsSaveApp, async (_event, patch: unknown): Promise<SettingsView> => {
     if (appState && typeof patch === 'object' && patch !== null) {
       const p = patch as Record<string, unknown>
       const clean: AppSettingsPatch = {}
@@ -2527,6 +2530,7 @@ if (!gotLock) {
       if (typeof p.hideOnCapture === 'boolean') clean.hideOnCapture = p.hideOnCapture
       if (typeof p.autoLaunch === 'boolean') clean.autoLaunch = p.autoLaunch
       if (typeof p.closeToTray === 'boolean') clean.closeToTray = p.closeToTray
+      if (isLanguage(p.language)) clean.language = p.language
       if (p.theme === 'light' || p.theme === 'dark') clean.theme = p.theme
       if (p.fontScale === 100 || p.fontScale === 110 || p.fontScale === 125) {
         clean.fontScale = p.fontScale
@@ -2545,7 +2549,13 @@ if (!gotLock) {
       if (captureShortcut !== null) clean.captureShortcut = captureShortcut
       const showHideShortcut = normalizeShortcut(p.showHideShortcut)
       if (showHideShortcut !== null) clean.showHideShortcut = showHideShortcut
+      if (clean.language !== undefined && !await setLanguage(clean.language)) delete clean.language
       saveAppSettings(appState, clean)
+      if (clean.language !== undefined) {
+        refreshTrayLanguage(tray, mainWindow)
+        syncSettingsWindowLanguage()
+        mainWindow?.setTitle(mainWindowTitle())
+      }
       if (clean.scanRanges !== undefined) {
         const nextScanRanges = new Set(clean.scanRanges)
         for (const cidr of previousScanRanges) {
@@ -3012,7 +3022,7 @@ if (!gotLock) {
     if (!view) return false
     const owner = BrowserWindow.fromWebContents(event.sender) ?? mainWindow ?? undefined
     const options = {
-      title: '图片另存为',
+      title: tr('图片另存为'),
       defaultPath: basename(view.savedPath)
     }
     const result = owner
@@ -3035,7 +3045,7 @@ if (!gotLock) {
     }
   })
 
-  app.whenReady().then(() => {
+  app.whenReady().then(async () => {
     void imagePreview.prune()
     const updateCaps = canAdvertiseUpdateSource() ? [CAPS.updateSource] : []
     appState = loadAppState(app.getPath('userData'), app.getVersion(), tcpPort, udpPort, [
@@ -3047,7 +3057,8 @@ if (!gotLock) {
       CAPS.avatarImages,
       CAPS.fileCabinet,
       ...updateCaps
-    ])
+    ], app.getPreferredSystemLanguages()[0] || app.getLocale())
+    await setLanguage(appState.config.language)
     udpPort = envUdpPort ?? appState.config.udpPort
     tcpPort = envTcpPort ?? appState.config.tcpPort
     netState.udpPort = udpPort

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { tr } from '../utils/i18n'
 import { computed } from 'vue'
 import { compatEmojiItem } from '../utils/compat-emoji'
 import { emojiToTwemojiCode, twemojiUrl } from '../utils/twemoji-assets'
@@ -6,7 +7,7 @@ import { emojiToTwemojiCode, twemojiUrl } from '../utils/twemoji-assets'
 const props = defineProps<{ emoji: string }>()
 
 const item = computed(() => compatEmojiItem(props.emoji))
-const label = computed(() => item.value?.label ?? props.emoji)
+const label = computed(() => item.value ? tr(item.value.label) : props.emoji)
 const src = computed(() => twemojiUrl(emojiToTwemojiCode(props.emoji)))
 </script>
 

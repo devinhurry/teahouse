@@ -1,3 +1,5 @@
+import { systemMessage } from '../../i18n/messages'
+import type { SystemPeople, SystemPerson } from '../../shared/i18n'
 import { createHash, randomInt, randomUUID } from 'node:crypto'
 import type { RemoteInfo } from 'node:dgram'
 import { EventEmitter } from 'node:events'
@@ -448,7 +450,7 @@ export class GroupsService extends EventEmitter {
       senderId: next.updatedBy,
       isMine: false,
       kind: 'system',
-      content,
+      ...content,
       ts: next.updatedTs,
       status: 'sent'
     })
@@ -459,53 +461,40 @@ export class GroupsService extends EventEmitter {
     if (row) this.emit('message', msgRowToView(row))
   }
 
-  private describeGroupChange(previous: GroupMeta | undefined, next: GroupMeta): string {
+  private describeGroupChange(previous: GroupMeta | undefined, next: GroupMeta): ReturnType<typeof systemMessage> | null {
     const actor = this.memberLabel(next.updatedBy)
-    if (!previous) {
-      return next.rev > 1 && next.members.includes(this.deps.selfId)
-        ? `${actor}邀请你加入群聊`
-        : ''
-    }
-
+    if (!previous) return next.rev > 1 && next.members.includes(this.deps.selfId)
+      ? systemMessage('group.invited', { actor }) : null
     const added = next.members.filter((id) => !previous.members.includes(id))
     const removed = previous.members.filter((id) => !next.members.includes(id))
     if (previous.ownerId !== next.ownerId && removed.includes(next.updatedBy)) {
-      return `${actor}退出群聊，${this.memberLabel(next.ownerId)}自动成为新群主`
+      return systemMessage('group.owner-left', { actor, owner: this.memberLabel(next.ownerId) })
     }
-    if (added.length > 0) return `${actor}邀请${this.memberListLabel(added)}加入群聊`
-    if (removed.length > 0) {
-      return removed.includes(next.updatedBy)
-        ? `${actor}退出了群聊`
-        : `${actor}将${this.memberListLabel(removed)}移出群聊`
-    }
-    if (previous.name !== next.name) {
-      return `${actor}把群名「${previous.name}」改成了「${next.name}」`
-    }
+    if (added.length > 0) return systemMessage('group.added', { actor, members: this.memberListLabel(added) })
+    if (removed.length > 0) return removed.includes(next.updatedBy)
+      ? systemMessage('group.left', { actor })
+      : systemMessage('group.removed', { actor, members: this.memberListLabel(removed) })
+    if (previous.name !== next.name) return systemMessage('group.renamed', { actor, before: previous.name, after: next.name })
     if ((previous.avatarHash ?? '') !== (next.avatarHash ?? '')) {
-      return next.avatarHash ? `${actor}修改了群头像` : `${actor}恢复了默认群头像`
+      return systemMessage(next.avatarHash ? 'group.avatar' : 'group.avatar-reset', { actor })
     }
-    if ((previous.description ?? '') !== (next.description ?? '')) {
-      return `${actor}修改了群简介`
-    }
-    if ((previous.announce ?? '') !== (next.announce ?? '')) {
-      return `${actor}修改了群公告`
-    }
+    if ((previous.description ?? '') !== (next.description ?? '')) return systemMessage('group.description', { actor })
+    if ((previous.announce ?? '') !== (next.announce ?? '')) return systemMessage('group.announcement', { actor })
     const promoted = next.adminIds.filter((id) => !previous.adminIds.includes(id))
-    if (promoted.length > 0) return `${actor}将${this.memberListLabel(promoted)}设为管理员`
+    if (promoted.length > 0) return systemMessage('group.promoted', { actor, members: this.memberListLabel(promoted) })
     const demoted = previous.adminIds.filter((id) => !next.adminIds.includes(id))
-    if (demoted.length > 0) return `${actor}取消了${this.memberListLabel(demoted)}的管理员身份`
-    return ''
+    if (demoted.length > 0) return systemMessage('group.demoted', { actor, members: this.memberListLabel(demoted) })
+    return null
   }
 
-  private memberListLabel(memberIds: string[]): string {
-    const shown = memberIds.slice(0, 5).map((id) => this.memberLabel(id)).join('、')
-    return memberIds.length > 5 ? `${shown}等${memberIds.length}人` : shown
+  private memberListLabel(memberIds: string[]): SystemPeople {
+    return { people: memberIds.slice(0, 5).map((id) => this.memberLabel(id)), total: memberIds.length }
   }
 
-  private memberLabel(memberId: string): string {
-    if (memberId === this.deps.selfId) return '你'
-    const resolved = this.deps.resolveDisplayName?.(memberId).trim()
-    return resolved || '有人'
+  private memberLabel(memberId: string): SystemPerson {
+    if (memberId === this.deps.selfId) return { name: '', role: 'self' }
+    const name = this.deps.resolveDisplayName?.(memberId).trim() || ''
+    return name ? { name } : { name: '', role: 'unknown' }
   }
 
   private selfIp(): string {

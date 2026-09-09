@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { tr } from '../utils/i18n'
 import { computed, onUnmounted, ref, watch } from 'vue'
 import {
   SHARE_FAIL_TEXT,
@@ -47,11 +48,11 @@ const chatStore = useChatStore()
 
 const canUpload = computed(() => perm.value === 'write')
 const uploadHint = computed(
-  () => `文件会放进 TA 文件柜的「${chatStore.selfNick || '你的名字'}」文件夹里`
+  () => tr('文件会放进 TA 文件柜的「{0}」文件夹里', { 0: chatStore.selfNick || tr('你的名字') })
 )
 
 const crumbs = computed<Crumb[]>(() => {
-  const list: Crumb[] = [{ name: '文件柜', path: '' }]
+  const list: Crumb[] = [{ name: tr('文件柜'), path: '' }]
   const segs = path.value ? path.value.split('/') : []
   let acc = ''
   for (const seg of segs) {
@@ -62,16 +63,16 @@ const crumbs = computed<Crumb[]>(() => {
 })
 
 const hasMore = computed(() => entries.value.length < total.value)
-const failText = computed(() => (failReason.value ? SHARE_FAIL_TEXT[failReason.value] : ''))
+const failText = computed(() => (failReason.value ? tr(SHARE_FAIL_TEXT[failReason.value]) : ''))
 const moreFailText = computed(() =>
-  moreFailReason.value ? SHARE_FAIL_TEXT[moreFailReason.value] : ''
+  moreFailReason.value ? tr(SHARE_FAIL_TEXT[moreFailReason.value]) : ''
 )
 const pickedCount = computed(() => picked.value.size)
 const allPagePicked = computed(
   () => entries.value.length > 0 && entries.value.every((e) => picked.value.has(e.name))
 )
 // 勾选只覆盖已经取回的条目，还有下一页时说「全选」会让人以为把 total 项都选上了
-const pickAllLabel = computed(() => (hasMore.value ? '选择已加载' : '全选'))
+const pickAllLabel = computed(() => (hasMore.value ? tr('选择已加载') : tr('全选')))
 const progressPercent = computed(() => {
   const t = transfer.value
   if (!t || t.totalSize <= 0) return 0
@@ -192,12 +193,12 @@ async function download(saveAs: boolean, only?: string[]): Promise<void> {
   const result = await window.pantry.downloadShare(props.peerId, paths, saveAs)
   downloading.value = false
   if (!result.ok) {
-    downloadNote.value = SHARE_FAIL_TEXT[result.reason]
+    downloadNote.value = tr(SHARE_FAIL_TEXT[result.reason])
     return
   }
   if (result.canceled) return
   if (!only) picked.value = new Set()
-  downloadNote.value = '已开始下载'
+  downloadNote.value = tr('已开始下载')
 }
 
 // 上传永远落到对方共享根下以我命名的子目录，与当前浏览到哪一层无关（决议 #272）
@@ -209,11 +210,11 @@ async function upload(directory: boolean): Promise<void> {
   const result = await window.pantry.uploadShare(props.peerId, undefined, directory)
   uploading.value = false
   if (!result.ok) {
-    downloadNote.value = SHARE_UPLOAD_FAIL_TEXT[result.reason]
+    downloadNote.value = tr(SHARE_UPLOAD_FAIL_TEXT[result.reason])
     return
   }
   if (result.canceled) return
-  downloadNote.value = `正在上传 ${result.fileCount} 个文件`
+  downloadNote.value = tr('正在上传 {0} 个文件', { 0: result.fileCount })
 }
 
 async function onDrop(event: DragEvent): Promise<void> {
@@ -230,10 +231,10 @@ async function onDrop(event: DragEvent): Promise<void> {
   const result = await window.pantry.uploadShare(props.peerId, granted)
   uploading.value = false
   if (!result.ok) {
-    downloadNote.value = SHARE_UPLOAD_FAIL_TEXT[result.reason]
+    downloadNote.value = tr(SHARE_UPLOAD_FAIL_TEXT[result.reason])
     return
   }
-  if (!result.canceled) downloadNote.value = `正在上传 ${result.fileCount} 个文件`
+  if (!result.canceled) downloadNote.value = tr('正在上传 {0} 个文件', { 0: result.fileCount })
 }
 
 function onDragOver(event: DragEvent): void {
@@ -261,9 +262,9 @@ const stopTransfer = window.pantry.onTransferUpdated((view) => {
   if (view.peerId !== props.peerId || !view.msgId.startsWith('share:')) return
   transfer.value = view
   const up = view.direction === 'out'
-  if (view.status === 'done') downloadNote.value = up ? '上传完成' : '下载完成'
-  else if (view.status === 'failed') downloadNote.value = up ? '上传失败，可重试' : '下载失败，可重试'
-  else if (view.status === 'canceled') downloadNote.value = '已取消'
+  if (view.status === 'done') downloadNote.value = up ? tr('上传完成') : tr('下载完成')
+  else if (view.status === 'failed') downloadNote.value = up ? tr('上传失败，可重试') : tr('下载失败，可重试')
+  else if (view.status === 'canceled') downloadNote.value = tr('已取消')
 })
 
 function revealDone(): void {
@@ -291,24 +292,24 @@ onUnmounted(() => stopTransfer())
   <aside
     class="panel"
     :class="{ 'drag-active': dragActive }"
-    aria-label="对方的文件柜"
+    :aria-label="tr('对方的文件柜')"
     @dragover="onDragOver"
     @dragleave="onDragLeave"
     @drop.prevent="onDrop"
   >
     <header class="panel-head">
-      <span class="panel-title" :title="`${peerName} 的文件柜`">{{ peerName }}的文件柜</span>
-      <span v-if="!failReason" class="perm" :class="perm">{{ canUpload ? '可上传' : '只读' }}</span>
-      <button class="icon-btn" title="在文件柜里打开" @click="openInCabinet">
+      <span class="panel-title" :title="tr('{0} 的文件柜', { 0: peerName })">{{ tr('{0}的文件柜', { 0: peerName }) }}</span>
+      <span v-if="!failReason" class="perm" :class="perm">{{ canUpload ? tr('可上传') : tr('只读') }}</span>
+      <button class="icon-btn" :title="tr('在文件柜里打开')" @click="openInCabinet">
         <PantryIcon name="external" :size="14" />
       </button>
-      <button class="icon-btn" title="关闭" @click="emit('close')">
+      <button class="icon-btn" :title="tr('关闭')" @click="emit('close')">
         <PantryIcon name="x" :size="14" />
       </button>
     </header>
 
     <div class="crumbs">
-      <button class="icon-btn" title="返回上级" :disabled="crumbs.length < 2 || loading" @click="goUp">
+      <button class="icon-btn" :title="tr('返回上级')" :disabled="crumbs.length < 2 || loading" @click="goUp">
         <PantryIcon name="chevron-left" :size="14" />
       </button>
       <div class="crumb-track">
@@ -324,24 +325,24 @@ onUnmounted(() => stopTransfer())
           </button>
         </template>
       </div>
-      <button class="icon-btn" title="刷新" :disabled="loading" @click="load(path)">
+      <button class="icon-btn" :title="tr('刷新')" :disabled="loading" @click="load(path)">
         <PantryIcon name="refresh" :size="14" />
       </button>
     </div>
 
-    <div v-if="loading" class="hint">正在读取…</div>
+    <div v-if="loading" class="hint">{{ tr('正在读取…') }}</div>
     <div v-else-if="failReason" class="hint error">
       <span>{{ failText }}</span>
-      <button class="retry" @click="load(path)">重试</button>
+      <button class="retry" @click="load(path)">{{ tr('重试') }}</button>
     </div>
-    <div v-else-if="entries.length === 0" class="hint">这个文件夹是空的</div>
+    <div v-else-if="entries.length === 0" class="hint">{{ tr('这个文件夹是空的') }}</div>
     <template v-else>
       <div class="list-head">
         <label class="pick-all">
           <input type="checkbox" :checked="allPagePicked" @change="toggleAll" />
           <span>{{ pickAllLabel }}</span>
         </label>
-        <span class="count">{{ total }} 项</span>
+        <span class="count">{{ tr('{0} 项', { 0: total }) }}</span>
       </div>
       <div class="list" @scroll="onScroll">
         <div
@@ -356,7 +357,7 @@ onUnmounted(() => stopTransfer())
             class="row-pick"
             type="checkbox"
             :checked="picked.has(entry.name)"
-            :aria-label="`勾选 ${entry.name}`"
+            :aria-label="tr('勾选 {0}', { 0: entry.name })"
             @click.stop
             @change="togglePick(entry.name)"
           />
@@ -364,14 +365,12 @@ onUnmounted(() => stopTransfer())
           <span class="row-name" :title="entry.name">{{ entry.name }}</span>
           <span class="row-size">{{ entry.isDir ? '' : formatBytes(entry.size) }}</span>
         </div>
-        <div v-if="loadingMore" class="hint small">正在加载更多…</div>
+        <div v-if="loadingMore" class="hint small">{{ tr('正在加载更多…') }}</div>
         <div v-else-if="moreFailReason" class="hint small error inline">
           <span>{{ moreFailText }}</span>
-          <button class="retry" @click="loadMore">重试</button>
+          <button class="retry" @click="loadMore">{{ tr('重试') }}</button>
         </div>
-        <div v-else-if="truncated" class="hint small">
-          目录内容过多，仅显示前 {{ SHARE_DIR_MAX_ENTRIES }} 项
-        </div>
+        <div v-else-if="truncated" class="hint small">{{ tr('目录内容过多，仅显示前 {0} 项', { 0: SHARE_DIR_MAX_ENTRIES }) }}</div>
       </div>
     </template>
 
@@ -384,36 +383,28 @@ onUnmounted(() => stopTransfer())
         v-if="transfer && (transfer.status === 'accepted' || transfer.status === 'offering')"
         class="link"
         @click="cancelDownload"
-      >
-        取消
-      </button>
+      >{{ tr('取消') }}</button>
       <button
         v-else-if="transfer?.status === 'done' && transfer.direction === 'in'"
         class="link"
         @click="revealDone"
-      >
-        打开位置
-      </button>
+      >{{ tr('打开位置') }}</button>
     </div>
 
     <footer class="panel-foot">
       <div class="foot-row">
         <span class="foot-sum">
-          <template v-if="pickedCount > 0">已选 <b>{{ pickedCount }}</b> 项</template>
-          <template v-else-if="!failReason">双击进文件夹</template>
+          <template v-if="pickedCount > 0">{{ tr('已选') }}<b>{{ pickedCount }}</b>{{ tr('项') }}</template>
+          <template v-else-if="!failReason">{{ tr('双击进文件夹') }}</template>
         </span>
         <div class="foot-actions">
           <template v-if="pickedCount > 0">
-            <button class="ghost" :disabled="downloading" @click="download(true)">另存为</button>
-            <button class="primary" :disabled="downloading" @click="download(false)">
-              下载（{{ pickedCount }}）
-            </button>
+            <button class="ghost" :disabled="downloading" @click="download(true)">{{ tr('另存为') }}</button>
+            <button class="primary" :disabled="downloading" @click="download(false)">{{ tr('下载（{0}）', { 0: pickedCount }) }}</button>
           </template>
           <template v-else-if="canUpload">
-            <button class="ghost" :disabled="uploading" @click="upload(true)">上传文件夹</button>
-            <button class="primary" :disabled="uploading" @click="upload(false)">
-              上传到 TA 的柜子
-            </button>
+            <button class="ghost" :disabled="uploading" @click="upload(true)">{{ tr('上传文件夹') }}</button>
+            <button class="primary" :disabled="uploading" @click="upload(false)">{{ tr('上传到 TA 的柜子') }}</button>
           </template>
         </div>
       </div>

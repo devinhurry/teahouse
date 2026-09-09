@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { tr } from '../utils/i18n'
 import { computed, onMounted, ref } from 'vue'
 import { NInput } from 'naive-ui'
 import { cabinetPeerName, useCabinetStore } from '../stores/cabinet'
@@ -22,14 +23,14 @@ const visiblePeers = computed(() => {
 })
 
 const modeLabel = computed(() =>
-  cabinet.shareMode === 'write' ? '可读可传' : cabinet.shareMode === 'read' ? '只读' : '不共享'
+  cabinet.shareMode === 'write' ? tr('可读可传') : cabinet.shareMode === 'read' ? tr('只读') : tr('不共享')
 )
 
 /** 离线与旧版本条目仍可点，进去再给确定原因；这里只提供副标题文案 */
 function peerSubtitle(p: PeerView): string {
-  if (!Array.isArray(p.caps) || !p.caps.includes(CAPS.fileCabinet)) return '版本较旧，不支持文件柜'
-  if (!p.online) return p.lastSeen ? `离线 · 最后在线 ${formatSeen(p.lastSeen)}` : '离线'
-  return [p.dept, p.ip].filter((s) => (s ?? '').length > 0).join(' · ') || '在线'
+  if (!Array.isArray(p.caps) || !p.caps.includes(CAPS.fileCabinet)) return tr('版本较旧，不支持文件柜')
+  if (!p.online) return p.lastSeen ? tr('离线 · 最后在线 {0}', { 0: formatSeen(p.lastSeen) }) : tr('离线')
+  return [p.dept, p.ip].filter((s) => (s ?? '').length > 0).join(' · ') || tr('在线')
 }
 
 function formatSeen(ms: number): string {
@@ -41,7 +42,7 @@ function formatSeen(ms: number): string {
     d.getFullYear() === now.getFullYear() &&
     d.getMonth() === now.getMonth() &&
     d.getDate() === now.getDate()
-  if (sameDay) return `今天 ${hh}:${mi}`
+  if (sameDay) return tr('今天 {0}:{1}', { 0: hh, 1: mi })
   return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${hh}:${mi}`
 }
 
@@ -61,27 +62,27 @@ onMounted(() => {
       <span class="mine-top">
         <span class="mine-icon"><PantryIcon name="cabinet" :size="17" /></span>
         <span class="mine-title">
-          <strong>我的文件柜</strong>
-          <small>{{ cabinet.shareRoot ? '同事能看到这里的内容' : '未开启' }}</small>
+          <strong>{{ tr('我的文件柜') }}</strong>
+          <small>{{ cabinet.shareRoot ? tr('同事能看到这里的内容') : tr('未开启') }}</small>
         </span>
       </span>
       <span v-if="cabinet.shareRoot" class="mine-rows">
         <span class="kv">
-          <span>共享目录</span>
+          <span>{{ tr('共享目录') }}</span>
           <b class="path" :title="cabinet.shareRoot">{{ cabinet.shareRoot }}</b>
         </span>
-        <span class="kv"><span>默认权限</span><b>{{ modeLabel }}</b></span>
-        <span class="kv"><span>单独设过的同事</span><b>{{ cabinet.grants.length }} 人</b></span>
+        <span class="kv"><span>{{ tr('默认权限') }}</span><b>{{ modeLabel }}</b></span>
+        <span class="kv"><span>{{ tr('单独设过的同事') }}</span><b>{{ tr('{0} 人', { 0: cabinet.grants.length }) }}</b></span>
       </span>
-      <span v-else class="mine-empty">选个目录，同事就能自己来取文件</span>
+      <span v-else class="mine-empty">{{ tr('选个目录，同事就能自己来取文件') }}</span>
     </button>
 
     <div class="side-head">
-      <span>同事的文件柜</span>
+      <span>{{ tr('同事的文件柜') }}</span>
       <span>{{ cabinet.cabinetPeers.length }}</span>
     </div>
     <div class="side-search">
-      <NInput v-model:value="query" size="small" clearable placeholder="搜索同事">
+      <NInput v-model:value="query" size="small" clearable :placeholder="tr('搜索同事')">
         <template #prefix><PantryIcon name="search" :size="14" /></template>
       </NInput>
     </div>
@@ -110,10 +111,8 @@ onMounted(() => {
           <span class="peer-sub">{{ peerSubtitle(p) }}</span>
         </span>
       </button>
-      <p v-if="cabinet.cabinetPeers.length === 0" class="side-empty">
-        还没有同事开启文件柜。等对方设好共享目录，这里就会出现。
-      </p>
-      <p v-else-if="visiblePeers.length === 0" class="side-empty">没有匹配的同事</p>
+      <p v-if="cabinet.cabinetPeers.length === 0" class="side-empty">{{ tr('还没有同事开启文件柜。等对方设好共享目录，这里就会出现。') }}</p>
+      <p v-else-if="visiblePeers.length === 0" class="side-empty">{{ tr('没有匹配的同事') }}</p>
     </div>
   </div>
 </template>

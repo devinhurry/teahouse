@@ -74,13 +74,13 @@ describe('文件柜面板细节一致性（决议 #281）', () => {
 
   it('截断提示用常量插值，改常量文案不会说谎', () => {
     expect(panelSource).toContain('import { SHARE_DIR_MAX_ENTRIES')
-    expect(panelSource).toContain('仅显示前 {{ SHARE_DIR_MAX_ENTRIES }} 项')
+    expect(panelSource).toContain("tr('目录内容过多，仅显示前 {0} 项', { 0: SHARE_DIR_MAX_ENTRIES })")
     expect(panelSource).not.toContain('仅显示前 5000 项')
   })
 
   it('还有下一页时不说「全选」，避免让人以为选中了 total 项', () => {
     expect(panelSource).toContain(
-      "const pickAllLabel = computed(() => (hasMore.value ? '选择已加载' : '全选'))"
+      "const pickAllLabel = computed(() => (hasMore.value ? tr('选择已加载') : tr('全选')))"
     )
     expect(panelSource).toContain('{{ pickAllLabel }}')
   })
@@ -98,7 +98,7 @@ describe('文件柜面板细节一致性（决议 #281）', () => {
 
 describe('面板与文件柜页签对齐（决议 #283/#284）', () => {
   it('头部有权限徽标与「在文件柜里打开」，后者带上当前对端', () => {
-    expect(panelSource).toContain('title="在文件柜里打开"')
+    expect(panelSource).toContain(":title=\"tr('在文件柜里打开')\"")
     expect(panelSource).toContain('window.pantry.openCabinet(props.peerId)')
     // 徽标上移到头部后，底栏留给选中摘要与按钮
     expect(panelSource).toMatch(/class="panel-head"[\s\S]{0,400}class="perm"/)
@@ -120,7 +120,7 @@ describe('面板与文件柜页签对齐（决议 #283/#284）', () => {
 
   it('导航栏入口切页签而不是开新窗口（决议 #284）', () => {
     const appSource = readFileSync(new URL('../App.vue', import.meta.url), 'utf8')
-    expect(appSource).toContain('data-label="文件柜"')
+    expect(appSource).toContain("data-label=\"tr('文件柜')\"")
     expect(appSource).toContain('name="cabinet"')
     // 文件柜是主窗第三个页签：列表栏与内容区各占一格，不再有独立窗口
     expect(appSource).toContain("type Tab = 'chat' | 'contacts' | 'cabinet'")

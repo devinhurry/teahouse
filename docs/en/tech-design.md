@@ -297,3 +297,7 @@ Network integration binds `127.0.0.1` and uses empty broadcast targets. It must 
 - **2026-09-06, v1.76, decision #305:** calibrate text selection geometry and keep the gesture cursor stable. Version **0.56.0 → 0.56.1**.
 
 - **2026-09-07, decision #306, v0.56.2:** built-in emoji retain transparent Unicode text beneath local SVGs for native selection/copy without extra line breaks; whole-message copy retains original text. The Win7 editor copies/cuts its existing logical draft selection. Linux text inputs use native insertText only for explicit NumLock-on Numpad digits or matching navigation keys, without modifiers or composition; consume events only on successful insertion. Readonly/disabled fields, NumLock-off navigation, Windows and macOS keep native behavior. No protocol, schema, IPC or dependency changes. UOS native event-chain verification remains a target-platform check.
+
+## Decision #307: Offline localization
+
+Persist validated `config.language` (zh-CN / en) through existing settings IPC. Load the bundled English dictionary on demand before mounting and propagate changes through reactive locale state. Keep the existing four dynamic entries and bootstrap budget. Chinese source templates are the fallback. New system messages attach versioned, validated metadata to `messages.file_ref`, retaining readable Chinese content; views expose optional systemRef. No wire-protocol or SQLite schema change.

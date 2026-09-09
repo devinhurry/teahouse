@@ -1,3 +1,4 @@
+import { initLanguage } from './utils/i18n'
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import { loadRendererRoot, resolveRendererEntry } from './renderer-entry'
@@ -10,7 +11,7 @@ async function bootstrap(): Promise<void> {
   if (navigator.platform.startsWith('Linux')) installLinuxNumpad()
   const entry = resolveRendererEntry(location.hash)
   if (entry === 'capture') document.documentElement.dataset.window = 'capture'
-  const root = await loadRendererRoot(entry)
+  const [root] = await Promise.all([loadRendererRoot(entry), initLanguage()])
   createApp(root.default).use(createPinia()).mount('#app')
 }
 

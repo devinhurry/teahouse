@@ -1,3 +1,5 @@
+import { systemMessage } from '../../i18n/messages'
+import type { SystemMessageKey } from '../../shared/i18n'
 import { randomInt } from 'node:crypto'
 import { EventEmitter } from 'node:events'
 import {
@@ -168,7 +170,7 @@ export class ChatService extends EventEmitter {
     const delivered = await this.deps.messenger.sendReliable(peerId, env)
     if (!delivered) return { ok: false, reason: 'undelivered' }
 
-    this.insertSystemTip(env.id, convId, this.deps.selfId, '你发送了一次窗口震动', env.ts, false)
+    this.insertSystemTip(env.id, convId, this.deps.selfId, 'nudge.sent', env.ts, false)
     return { ok: true }
   }
 
@@ -258,7 +260,7 @@ export class ChatService extends EventEmitter {
     if (row.conv_id.startsWith('single:')) {
       const peerId = row.conv_id.slice(7)
       this.deps.messenger.dropQueuedMessage(row.id, [peerId])
-      this.applyRecall(row, env.id, '你撤回了一条消息', env.ts, false)
+      this.applyRecall(row, env.id, 'recall.self', env.ts, false)
       void this.deps.messenger.sendUserMessage(peerId, env)
       return true
     }
@@ -268,7 +270,7 @@ export class ChatService extends EventEmitter {
     if (!meta || !meta.members.includes(this.deps.selfId)) return false
     const recipients = meta.members.filter((member) => member !== this.deps.selfId)
     this.deps.messenger.dropQueuedMessage(row.id, recipients)
-    this.applyRecall(row, env.id, '你撤回了一条消息', env.ts, false)
+    this.applyRecall(row, env.id, 'recall.self', env.ts, false)
     for (const member of meta.members) {
       if (member !== this.deps.selfId) void this.deps.messenger.sendUserMessage(member, env)
     }
@@ -376,7 +378,7 @@ export class ChatService extends EventEmitter {
       env.id,
       convId,
       env.from,
-      '对方发来一次窗口震动',
+      'nudge.received',
       ts,
       false
     )
@@ -420,7 +422,7 @@ export class ChatService extends EventEmitter {
     if (isMediaRecallKind(target.kind) && !this.deps.mediaRecall?.applyIncomingRecall(target)) {
       return
     }
-    this.applyRecall(target, env.id, '对方撤回了一条消息', env.ts, true, false)
+    this.applyRecall(target, env.id, 'recall.peer', env.ts, true, false)
   }
 
   private canRecall(row: MsgRow): boolean {
@@ -445,7 +447,7 @@ export class ChatService extends EventEmitter {
   private applyRecall(
     target: MsgRow,
     tipId: string,
-    tip: string,
+    tip: SystemMessageKey,
     ts: number,
     countUnread: boolean,
     applyMediaRecall = true
@@ -460,7 +462,7 @@ export class ChatService extends EventEmitter {
       senderId: target.sender_id,
       isMine: false,
       kind: 'system',
-      content: tip,
+      ...systemMessage(tip),
       ts,
       status: 'sent'
     })
@@ -475,7 +477,7 @@ export class ChatService extends EventEmitter {
     id: string,
     convId: string,
     senderId: string,
-    content: string,
+    content: SystemMessageKey,
     ts: number,
     countUnread: boolean
   ): boolean {
@@ -485,7 +487,7 @@ export class ChatService extends EventEmitter {
       senderId,
       isMine: false,
       kind: 'system',
-      content,
+      ...systemMessage(content),
       ts,
       status: 'sent'
     })

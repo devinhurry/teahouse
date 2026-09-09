@@ -1,3 +1,4 @@
+import { tr } from '../utils/i18n'
 import { defineStore } from 'pinia'
 import { shallowReactive } from 'vue'
 import type {
@@ -173,7 +174,7 @@ export const useChatStore = defineStore('chat', {
       // 截图选择"发送"：发到当前会话（无可发送会话则只留在剪贴板）
       window.pantry.onCaptured((bytes) => {
         const conv = this.activeConv
-        if (conv) void this.sendImageBytes('截图.png', bytes)
+        if (conv) void this.sendImageBytes(tr('截图.png'), bytes)
       })
     },
 

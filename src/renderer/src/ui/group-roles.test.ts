@@ -9,8 +9,8 @@ const inviteDialogSource = readFileSync(
 
 describe('群成员面板角色与开放邀请', () => {
   it('展示群主和管理员徽标，并提供群主任免入口', () => {
-    expect(panelSource).toContain('class="role-badge owner">群主</span>')
-    expect(panelSource).toContain('class="role-badge">管理员</span>')
+    expect(panelSource).toContain("class=\"role-badge owner\">{{ tr('群主') }}</span>")
+    expect(panelSource).toContain("class=\"role-badge\">{{ tr('管理员') }}</span>")
     expect(panelSource).toContain('canSetGroupAdmin(group, id)')
     expect(panelSource).toContain('name="shield"')
     expect(panelSource).toContain("kind: 'set-admin'")

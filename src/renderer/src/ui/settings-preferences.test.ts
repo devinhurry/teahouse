@@ -18,8 +18,8 @@ describe('设置二选一偏好滑块', () => {
   it('主题用本地太阳与月亮图标并保留无障碍名称', () => {
     expect(settingsSource).toContain('name="sun"')
     expect(settingsSource).toContain('name="moon"')
-    expect(settingsSource).toContain('aria-label="浅色主题"')
-    expect(settingsSource).toContain('aria-label="深色主题"')
+    expect(settingsSource).toContain(":aria-label=\"tr('浅色主题')\"")
+    expect(settingsSource).toContain(":aria-label=\"tr('深色主题')\"")
     expect(iconSource).toContain("name === 'sun'")
     expect(iconSource).toContain("name === 'moon'")
   })

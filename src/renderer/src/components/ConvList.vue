@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { messageText } from '../utils/message-text'
+import { tr } from '../utils/i18n'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import type { ConversationView } from '../../../shared/ipc'
 import { usePeersStore } from '../stores/peers'
@@ -107,12 +109,10 @@ function confirmRemove(): void {
 <template>
   <div class="pane" @click="menu = null">
     <div class="list-summary">
-      <span>最近会话</span>
+      <span>{{ tr('最近会话') }}</span>
       <span>{{ chatStore.visibleConvs.length }}</span>
     </div>
-    <div v-if="chatStore.visibleConvs.length === 0" class="placeholder">
-      还没有会话<br />去「通讯录」找个人开聊
-    </div>
+    <div v-if="chatStore.visibleConvs.length === 0" class="placeholder">{{ tr('还没有会话') }}<br />{{ tr('去「通讯录」找个人开聊') }}</div>
     <ul v-else class="conv-list">
       <li v-for="conv in chatStore.visibleConvs" :key="conv.id">
         <button
@@ -139,16 +139,16 @@ function confirmRemove(): void {
           <span class="conv-main">
             <span class="row1">
               <span class="conv-name">
-                <em v-if="conv.pinned" class="flag">置顶</em>
-                <em v-if="conv.muted" class="flag muted">静音</em>
+                <em v-if="conv.pinned" class="flag">{{ tr('置顶') }}</em>
+                <em v-if="conv.muted" class="flag muted">{{ tr('静音') }}</em>
                 {{ convName(conv) }}
               </span>
               <span class="conv-time">{{ listTime(conv.lastTs) }}</span>
             </span>
             <span class="row2">
-              <span v-if="conv.mentioned" class="mention">[有人@我]</span>
+              <span v-if="conv.mentioned" class="mention">{{ tr('[有人@我]') }}</span>
               <span class="conv-preview">
-                <template v-for="(part, index) in splitEmojiText(conv.preview)" :key="index">
+                <template v-for="(part, index) in splitEmojiText(conv.previewMessage ? messageText(conv.previewMessage) : conv.preview)" :key="index">
                   <CompatEmoji v-if="part.emoji" :emoji="part.text" />
                   <span v-else>{{ part.text }}</span>
                 </template>
@@ -168,19 +168,19 @@ function confirmRemove(): void {
       :style="{ left: `${menu.x}px`, top: `${menu.y}px` }"
       @click.stop
     >
-      <button @click="togglePin">{{ menu.conv.pinned ? '取消置顶' : '置顶' }}</button>
-      <button @click="toggleMute">{{ menu.conv.muted ? '取消免打扰' : '免打扰' }}</button>
-      <button class="danger" @click="askRemoveConv">移除会话</button>
+      <button @click="togglePin">{{ menu.conv.pinned ? tr('取消置顶') : tr('置顶') }}</button>
+      <button @click="toggleMute">{{ menu.conv.muted ? tr('取消免打扰') : tr('免打扰') }}</button>
+      <button class="danger" @click="askRemoveConv">{{ tr('移除会话') }}</button>
     </div>
 
     <!-- 移除聊天二次确认（决议 #125）：确认后删除聊天记录，仍有 10 秒撤回窗口 -->
     <div v-if="confirmConv" class="confirm-mask" @click.self="confirmConv = null">
-      <div class="confirm-card" role="dialog" aria-modal="true" aria-label="移除聊天">
-        <h3>移除聊天</h3>
-        <p>移除后，与「{{ confirmName }}」的聊天记录将被删除。删除后 10 秒内可撤回。</p>
+      <div class="confirm-card" role="dialog" aria-modal="true" :aria-label="tr('移除聊天')">
+        <h3>{{ tr('移除聊天') }}</h3>
+        <p>{{ tr('移除后，与「{0}」的聊天记录将被删除。删除后 10 秒内可撤回。', { 0: confirmName }) }}</p>
         <div class="confirm-actions">
-          <button class="cancel" @click="confirmConv = null">取消</button>
-          <button class="danger-btn" @click="confirmRemove">移除</button>
+          <button class="cancel" @click="confirmConv = null">{{ tr('取消') }}</button>
+          <button class="danger-btn" @click="confirmRemove">{{ tr('移除') }}</button>
         </div>
       </div>
     </div>

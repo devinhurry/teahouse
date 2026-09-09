@@ -1,3 +1,5 @@
+import { initialLanguage, isLanguage } from '../../i18n'
+import type { Language } from '../../shared/i18n'
 import { readFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import { hostname, userInfo } from 'node:os'
@@ -53,6 +55,8 @@ export interface ConfigFile {
   autoLaunch: boolean
   /** 关闭主窗口行为：true=最小化到托盘，false=退出 */
   closeToTray: boolean
+  /** 本机界面语言（决议 #307） */
+  language: Language
   /** 深色主题手动切换（决议 #24） */
   theme: 'light' | 'dark'
   /** 办公场景护眼字体缩放（百分比） */
@@ -216,6 +220,7 @@ export function saveAppSettings(
       | 'hideOnCapture'
       | 'autoLaunch'
       | 'closeToTray'
+      | 'language'
       | 'theme'
       | 'fontScale'
       | 'showMessagePreview'
@@ -256,6 +261,7 @@ export function saveAppSettings(
   if (patch.hideOnCapture !== undefined) state.config.hideOnCapture = patch.hideOnCapture
   if (patch.autoLaunch !== undefined) state.config.autoLaunch = patch.autoLaunch
   if (patch.closeToTray !== undefined) state.config.closeToTray = patch.closeToTray
+  if (isLanguage(patch.language)) state.config.language = patch.language
   if (patch.theme !== undefined) state.config.theme = patch.theme
   if (patch.fontScale !== undefined) state.config.fontScale = patch.fontScale
   if (patch.showMessagePreview !== undefined) {
@@ -317,7 +323,8 @@ export function loadAppState(
   appVersion: string,
   tcpPort = DEFAULT_TCP_PORT,
   udpPort = DEFAULT_UDP_PORT,
-  caps: string[] = []
+  caps: string[] = [],
+  systemLanguage = 'zh-CN'
 ): AppState {
   const identityPath = join(dataDir, 'identity.json')
   const configPath = join(dataDir, 'config.json')
@@ -356,6 +363,7 @@ export function loadAppState(
       hideOnCapture: true,
       autoLaunch: true,
       closeToTray: true,
+      language: initialLanguage(false, undefined, systemLanguage),
       theme: 'light',
       fontScale: 100,
       showMessagePreview: true,
@@ -439,6 +447,7 @@ export function loadAppState(
   config.hideOnCapture = config.hideOnCapture !== false
   config.autoLaunch = config.autoLaunch !== false
   config.closeToTray = config.closeToTray !== false
+  config.language = initialLanguage(true, config.language, systemLanguage)
   config.theme = config.theme === 'dark' ? 'dark' : 'light'
   config.fontScale = config.fontScale === 110 || config.fontScale === 125 ? config.fontScale : 100
   config.showMessagePreview = config.showMessagePreview !== false

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { tr } from '../utils/i18n'
 import { computed, ref } from 'vue'
 import type { AvatarSourcePick, GroupPatch, GroupView } from '../../../shared/ipc'
 import { CAPS, GROUP_MAX_MEMBERS } from '../../../shared/protocol'
@@ -48,19 +49,19 @@ const hasLegacyMembers = computed(() =>
 )
 const adminTip = computed(() => {
   if (!props.group.amMember) return ''
-  if (props.group.selfRole === 'owner') return '你是群主，可任免管理员并管理全部成员'
-  if (props.group.selfRole === 'admin') return '你是管理员，可修改群名并移出普通成员'
+  if (props.group.selfRole === 'owner') return tr('你是群主，可任免管理员并管理全部成员')
+  if (props.group.selfRole === 'admin') return tr('你是管理员，可修改群名并移出普通成员')
   if (props.group.hasAdminPassword) {
     return props.group.adminHint
-      ? `群管理需要管理密码；提示：${props.group.adminHint}`
-      : '群管理需要管理密码'
+      ? tr('群管理需要管理密码；提示：{0}', { 0: props.group.adminHint })
+      : tr('群管理需要管理密码')
   }
-  return '所有成员均可邀请联系人加入群聊'
+  return tr('所有成员均可邀请联系人加入群聊')
 })
 
 function nameOf(id: string): string {
   // 自己显示「昵称（我）」而非裸「我」（决议 #83）
-  if (id === props.selfId) return chatStore.selfNick ? `${chatStore.selfNick}（我）` : '我'
+  if (id === props.selfId) return chatStore.selfNick ? tr('{0}（我）', { 0: chatStore.selfNick }) : tr('我')
   return peersStore.nameOf(id)
 }
 function avatarOf(id: string): number {
@@ -77,7 +78,7 @@ function groupAdminPassword(): string | undefined {
   if (props.group.canManage) return undefined
   const password = adminPassword.value.trim()
   if (!password) {
-    avatarFeedback.value = '请输入管理密码'
+    avatarFeedback.value = tr('请输入管理密码')
     return undefined
   }
   return password
@@ -86,7 +87,7 @@ function groupAdminPassword(): string | undefined {
 async function pickGroupAvatar(): Promise<void> {
   if (avatarBusy.value || !canShowAdmin.value) return
   if (!props.group.canManage && !adminPassword.value.trim()) {
-    avatarFeedback.value = '请输入管理密码'
+    avatarFeedback.value = tr('请输入管理密码')
     return
   }
   const source = await window.pantry.pickAvatarSource()
@@ -109,14 +110,14 @@ async function applyGroupAvatar(bytes: ArrayBuffer): Promise<void> {
     const updated = await window.pantry.setGroupAvatar(props.group.groupId, bytes, password)
     if (!updated) {
       avatarFeedback.value = props.group.hasAdminPassword
-        ? '密码不正确，请重新输入'
-        : '保存群头像失败'
+        ? tr('密码不正确，请重新输入')
+        : tr('保存群头像失败')
       return
     }
     groupsStore.byId[updated.groupId] = updated
     avatarSource.value = null
   } catch {
-    avatarFeedback.value = '保存群头像失败，请稍后重试'
+    avatarFeedback.value = tr('保存群头像失败，请稍后重试')
   } finally {
     avatarBusy.value = false
   }
@@ -132,13 +133,13 @@ async function restoreGroupAvatar(): Promise<void> {
     const updated = await window.pantry.setGroupAvatar(props.group.groupId, null, password)
     if (!updated) {
       avatarFeedback.value = props.group.hasAdminPassword
-        ? '密码不正确，请重新输入'
-        : '恢复群头像失败'
+        ? tr('密码不正确，请重新输入')
+        : tr('恢复群头像失败')
       return
     }
     groupsStore.byId[updated.groupId] = updated
   } catch {
-    avatarFeedback.value = '恢复群头像失败，请稍后重试'
+    avatarFeedback.value = tr('恢复群头像失败，请稍后重试')
   } finally {
     avatarBusy.value = false
   }
@@ -185,7 +186,7 @@ async function toggleAdmin(id: string): Promise<void> {
   const enabled = !props.group.adminIds.includes(id)
   await runUpdate(
     { kind: 'set-admin', memberId: id, enabled },
-    enabled ? '设置管理员失败' : '取消管理员失败'
+    enabled ? tr('设置管理员失败') : tr('取消管理员失败')
   )
 }
 
@@ -198,12 +199,12 @@ async function updateAdmin(patch: GroupAdminAction): Promise<boolean> {
   const prepared = prepareGroupAdminPatch(props.group, patch, adminPassword.value)
   if (!prepared.ok) {
     adminFeedback.value =
-      prepared.reason === 'missing-password' ? '请输入管理密码' : '当前节点没有管理权限'
+      prepared.reason === 'missing-password' ? tr('请输入管理密码') : tr('当前节点没有管理权限')
     return false
   }
 
   const failureMessage =
-    'adminPassword' in prepared.patch ? '密码不正确，请重新输入' : '群管理操作失败，请稍后重试'
+    'adminPassword' in prepared.patch ? tr('密码不正确，请重新输入') : tr('群管理操作失败，请稍后重试')
   return runUpdate(prepared.patch, failureMessage)
 }
 
@@ -233,7 +234,7 @@ async function runUpdate(patch: GroupPatch, failureMessage: string): Promise<boo
     <div class="head">
       <template v-if="renaming">
         <input v-model="newName" class="rename" maxlength="32" @keydown.enter="rename" />
-        <button class="mini" title="保存" :disabled="adminBusy" @click="rename">
+        <button class="mini" :title="tr('保存')" :disabled="adminBusy" @click="rename">
           <PantryIcon name="check" :size="14" />
         </button>
       </template>
@@ -242,14 +243,14 @@ async function runUpdate(patch: GroupPatch, failureMessage: string): Promise<boo
         <button
           v-if="canShowAdmin"
           class="mini"
-          title="改名"
+          :title="tr('改名')"
           @click="((renaming = true), (newName = group.name))"
         >
           <PantryIcon name="edit" :size="14" />
         </button>
       </template>
       <span class="spacer"></span>
-      <button class="mini" title="关闭" @click="emit('close')">
+      <button class="mini" :title="tr('关闭')" @click="emit('close')">
         <PantryIcon name="x" :size="14" />
       </button>
     </div>
@@ -257,8 +258,8 @@ async function runUpdate(patch: GroupPatch, failureMessage: string): Promise<boo
     <div class="group-identity">
       <GroupAvatar class="group-avatar-large" :avatar-hash="group.avatarHash" :icon-size="28" />
       <div class="group-avatar-copy">
-        <strong>群头像</strong>
-        <span>{{ group.avatarHash ? '自定义图片' : '默认群组图标' }}</span>
+        <strong>{{ tr('群头像') }}</strong>
+        <span>{{ group.avatarHash ? tr('自定义图片') : tr('默认群组图标') }}</span>
       </div>
       <button
         v-if="canShowAdmin"
@@ -266,37 +267,35 @@ async function runUpdate(patch: GroupPatch, failureMessage: string): Promise<boo
         :disabled="avatarBusy || adminBusy"
         @click="pickGroupAvatar"
       >
-        {{ group.avatarHash ? '更换' : '设置' }}
+        {{ group.avatarHash ? tr('更换') : tr('设置') }}
       </button>
       <button
         v-if="canShowAdmin && group.avatarHash"
         class="avatar-action secondary"
         :disabled="avatarBusy || adminBusy"
         @click="restoreGroupAvatar"
-      >
-        恢复默认
-      </button>
+      >{{ tr('恢复默认') }}</button>
     </div>
     <div v-if="avatarFeedback" class="admin-feedback">{{ avatarFeedback }}</div>
     <div v-if="group.description || group.announce" class="group-meta-list">
       <div v-if="group.description" class="meta-item">
-        <span class="meta-label">群简介</span>
+        <span class="meta-label">{{ tr('群简介') }}</span>
         <span class="meta-value description-text">{{ group.description }}</span>
       </div>
       <div v-if="group.announce" class="meta-item">
-        <span class="meta-label">群公告</span>
+        <span class="meta-label">{{ tr('群公告') }}</span>
         <span class="meta-value announce-text">{{ group.announce }}</span>
       </div>
     </div>
-    <div class="count">成员 {{ group.members.length }} / {{ GROUP_MAX_MEMBERS }}</div>
+    <div class="count">{{ tr('成员 {0} / {1}', { 0: group.members.length, 1: GROUP_MAX_MEMBERS }) }}</div>
     <div v-if="adminTip" class="admin-tip">{{ adminTip }}</div>
-    <div v-if="hasLegacyMembers" class="compat-tip">群内有旧版本成员，角色或邀请可能无法完整同步，请提醒升级</div>
+    <div v-if="hasLegacyMembers" class="compat-tip">{{ tr('群内有旧版本成员，角色或邀请可能无法完整同步，请提醒升级') }}</div>
     <div v-if="group.selfRole === 'member' && group.hasAdminPassword" class="admin-password">
       <input
         v-model="adminPassword"
         type="password"
         maxlength="64"
-        placeholder="管理密码"
+        :placeholder="tr('管理密码')"
         :disabled="adminBusy"
         @keydown.enter="renaming ? rename() : undefined"
       />
@@ -312,13 +311,13 @@ async function runUpdate(patch: GroupPatch, failureMessage: string): Promise<boo
           :presence="id === selfId ? undefined : ((peersStore.byId(id)?.online ?? false) ? 'online' : 'offline')"
         />
         <span class="nm">{{ nameOf(id) }}</span>
-        <span v-if="id === group.ownerId" class="role-badge owner">群主</span>
-        <span v-else-if="group.adminIds.includes(id)" class="role-badge">管理员</span>
+        <span v-if="id === group.ownerId" class="role-badge owner">{{ tr('群主') }}</span>
+        <span v-else-if="group.adminIds.includes(id)" class="role-badge">{{ tr('管理员') }}</span>
         <button
           v-if="canSetGroupAdmin(group, id)"
           class="mini admin-toggle"
           :class="{ active: group.adminIds.includes(id) }"
-          :title="group.adminIds.includes(id) ? '取消管理员' : '设为管理员'"
+          :title="group.adminIds.includes(id) ? tr('取消管理员') : tr('设为管理员')"
           :disabled="adminBusy"
           @click="toggleAdmin(id)"
         >
@@ -327,7 +326,7 @@ async function runUpdate(patch: GroupPatch, failureMessage: string): Promise<boo
         <button
           v-if="canRemoveGroupMember(group, id, selfId)"
           class="mini danger"
-          title="移出"
+          :title="tr('移出')"
           :disabled="adminBusy"
           @click="removeMember(id)"
         >
@@ -340,30 +339,28 @@ async function runUpdate(patch: GroupPatch, failureMessage: string): Promise<boo
       <button
         class="add"
         :disabled="adminBusy || atMemberCap"
-        :title="atMemberCap ? `最多 ${GROUP_MAX_MEMBERS} 人` : '添加成员'"
+        :title="atMemberCap ? tr('最多 {0} 人', { 0: GROUP_MAX_MEMBERS }) : tr('添加成员')"
         @click="showInviteDialog = true"
       >
-        <PantryIcon name="plus" :size="14" />{{ atMemberCap ? '已满员' : '添加成员' }}
+        <PantryIcon name="plus" :size="14" />{{ atMemberCap ? tr('已满员') : tr('添加成员') }}
       </button>
       <button
         v-if="canShowAdmin"
         class="add"
-        title="设置群简介"
+        :title="tr('设置群简介')"
         @click="openTextDialog('description')"
       >
-        <PantryIcon name="edit" :size="14" />群简介
-      </button>
+        <PantryIcon name="edit" :size="14" />{{ tr('群简介') }}</button>
       <button
         v-if="canShowAdmin"
         class="add"
-        title="设置群公告"
+        :title="tr('设置群公告')"
         @click="openTextDialog('announce')"
       >
-        <PantryIcon name="bullhorn" :size="14" />群公告
-      </button>
-      <button class="leave" @click="leave">退出讨论组</button>
+        <PantryIcon name="bullhorn" :size="14" />{{ tr('群公告') }}</button>
+      <button class="leave" @click="leave">{{ tr('退出讨论组') }}</button>
     </template>
-    <p v-else class="left-tip">你已不在该讨论组（历史保留，无法发言）</p>
+    <p v-else class="left-tip">{{ tr('你已不在该讨论组（历史保留，无法发言）') }}</p>
 
     <GroupInviteDialog
       v-if="showInviteDialog && group.amMember"
@@ -382,7 +379,7 @@ async function runUpdate(patch: GroupPatch, failureMessage: string): Promise<boo
     <AvatarCropDialog
       v-if="avatarSource"
       :source="avatarSource"
-      title="调整群头像"
+      :title="tr('调整群头像')"
       :busy="avatarBusy"
       :error="avatarFeedback"
       @close="avatarSource = null"

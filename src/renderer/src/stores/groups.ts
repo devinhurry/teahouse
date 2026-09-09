@@ -1,3 +1,4 @@
+import { tr } from '../utils/i18n'
 import { defineStore } from 'pinia'
 import type { GroupView } from '../../../shared/ipc'
 
@@ -8,7 +9,7 @@ export const useGroupsStore = defineStore('groups', {
   }),
   getters: {
     nameOf: (state) => {
-      return (groupId: string): string => state.byId[groupId]?.name ?? '讨论组'
+      return (groupId: string): string => state.byId[groupId]?.name ?? tr('讨论组')
     }
   },
   actions: {

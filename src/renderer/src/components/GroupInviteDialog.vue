@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { tr } from '../utils/i18n'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { NButton } from 'naive-ui'
 import type { GroupView } from '../../../shared/ipc'
@@ -45,13 +46,13 @@ async function invite(): Promise<void> {
       memberIds: [...selectedIds.value]
     })
     if (!updated) {
-      error.value = '添加失败，请稍后重试'
+      error.value = tr('添加失败，请稍后重试')
       return
     }
     groupsStore.byId[updated.groupId] = updated
     emit('close')
   } catch {
-    error.value = '添加失败，请稍后重试'
+    error.value = tr('添加失败，请稍后重试')
   } finally {
     inviting.value = false
   }
@@ -91,8 +92,8 @@ onBeforeUnmount(() => {
         @mousedown.stop
       >
         <header class="head">
-          <h3 id="group-invite-dialog-title">添加群成员</h3>
-          <span>群内 {{ group.members.length }} / {{ GROUP_MAX_MEMBERS }} 人</span>
+          <h3 id="group-invite-dialog-title">{{ tr('添加群成员') }}</h3>
+          <span>{{ tr('群内 {0} / {1} 人', { 0: group.members.length, 1: GROUP_MAX_MEMBERS }) }}</span>
         </header>
 
         <GroupMemberPicker
@@ -100,17 +101,15 @@ onBeforeUnmount(() => {
           :selected-ids="selectedIds"
           :excluded-ids="group.members"
           :max-pick="remaining"
-          search-aria-label="搜索可添加的群成员"
-          :selection-limit-label="`本群最多还可添加 ${remaining} 人`"
-          empty-text="所有联系人都已在群内"
+          :search-aria-label="tr('搜索可添加的群成员')"
+          :selection-limit-label="tr('本群最多还可添加 {0} 人', { 0: remaining })"
+          :empty-text="tr('所有联系人都已在群内')"
           @update:selected-ids="updateSelection"
         />
 
         <p class="error" aria-live="polite">{{ error }}</p>
         <div class="foot">
-          <NButton size="small" secondary :disabled="inviting" @click="requestClose">
-            取消
-          </NButton>
+          <NButton size="small" secondary :disabled="inviting" @click="requestClose">{{ tr('取消') }}</NButton>
           <NButton
             type="primary"
             size="small"
@@ -118,7 +117,7 @@ onBeforeUnmount(() => {
             :loading="inviting"
             @click="invite"
           >
-            {{ inviting ? '添加中' : selectedIds.length > 0 ? `添加 ${selectedIds.length} 人` : '添加' }}
+            {{ inviting ? tr('添加中') : selectedIds.length > 0 ? tr('添加 {0} 人', { 0: selectedIds.length }) : tr('添加') }}
           </NButton>
         </div>
       </section>

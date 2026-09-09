@@ -1,10 +1,12 @@
+import { tr, getLanguage } from '../../i18n'
+import { messageText, parseSystemMessage, pkResultText } from '../../i18n/messages'
 import type DatabaseT from 'better-sqlite3'
 import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs'
 import { basename, extname, join } from 'node:path'
 import type { DataExportOptions, DataImportResult, ExportFormat } from '../../shared/ipc'
 import { GROUP_MAX_MEMBERS, LIMITS, isAvatarHash } from '../../shared/protocol'
-import { parsePkRef, pkResultText, pkTitle } from '../../shared/pk'
+import { parsePkRef, pkLabel } from '../../shared/pk'
 import { toFtsTokens } from '../store/fts'
 import { isPathInsideAny } from '../util/path-policy'
 import { readZip, writeStoreZip, type ZipEntry } from '../util/zip-store'
@@ -713,21 +715,21 @@ export class PorterService {
 
   private renderText(messages: MessageDump[]): string {
     return messages
-      .map((msg) => `${new Date(msg.ts).toLocaleString('zh-CN')} ${msg.isMine ? '我' : msg.senderId}: ${messageLabel(msg)}`)
+      .map((msg) => `${new Date(msg.ts).toLocaleString(getLanguage())} ${msg.isMine ? tr('我') : msg.senderId}: ${messageLabel(msg)}`)
       .join('\n')
   }
 
   private renderHtml(messages: MessageDump[]): string {
-    const title = `茶话间导出-${new Date().toLocaleString('zh-CN')}`
+    const title = tr('茶话间导出-{0}', { 0: new Date().toLocaleString(getLanguage()) })
     const rows = messages
       .map(
         (msg) =>
-          `<p><time>${escapeHtml(new Date(msg.ts).toLocaleString('zh-CN'))}</time> <b>${escapeHtml(
-            msg.isMine ? '我' : msg.senderId
+          `<p><time>${escapeHtml(new Date(msg.ts).toLocaleString(getLanguage()))}</time> <b>${escapeHtml(
+            msg.isMine ? tr('我') : msg.senderId
           )}</b>: ${escapeHtml(messageLabel(msg))}</p>`
       )
       .join('\n')
-    return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(
+    return `<!doctype html><html lang="${getLanguage()}"><head><meta charset="utf-8"><title>${escapeHtml(
       title
     )}</title><style>body{font-family:-apple-system,BlinkMacSystemFont,"Microsoft YaHei",sans-serif;line-height:1.6;max-width:920px;margin:32px auto;color:#1a1a1a}time{color:#777;font-size:12px}p{border-bottom:1px solid #eee;padding:8px 0;white-space:pre-wrap}</style></head><body><h1>${escapeHtml(
       title
@@ -851,16 +853,20 @@ function fileLabel(msg: MessageDump): string {
   if (!msg.fileRef) return msg.content
   try {
     const ref = JSON.parse(msg.fileRef) as { name?: string }
-    return `[文件] ${basename(ref.name ?? '')}`
+    return tr('[文件] {0}', { 0: basename(ref.name ?? '') })
   } catch {
     return msg.content
   }
 }
 
 function messageLabel(msg: MessageDump): string {
+  if (msg.kind === 'system') return messageText({ kind: 'system', text: msg.content, systemRef: parseSystemMessage(msg.fileRef) })
+  if (msg.kind === 'image') return tr('[图片]')
+  if (msg.kind === 'sticker') return tr('[表情]')
+  if (msg.kind === 'file') return fileLabel(msg)
   if (msg.kind === 'pk') {
     const ref = parsePkRef(msg.fileRef)
-    return ref ? `${pkTitle(ref.game)}：${pkResultText(ref)}` : msg.content
+    return ref ? tr('PK · {0}：{1}', { 0: tr(pkLabel(ref.game)), 1: pkResultText(ref) }) : msg.content
   }
   return msg.content || fileLabel(msg)
 }

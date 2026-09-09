@@ -26,7 +26,7 @@ describe('自定义头像渲染入口', () => {
     expect(crop).toContain('renderAvatarWebp(props.source.bytes, props.source.mime')
     expect(crop).not.toContain('setPointerCapture')
     expect(crop).toContain('@wheel.prevent=')
-    expect(crop).toContain("busy ? '正在保存…' : '应用头像'")
+    expect(crop).toContain("busy ? tr('正在保存…') : tr('应用头像')")
     expect(crop).toContain('returnFocus?.focus()')
   })
 
@@ -64,7 +64,7 @@ describe('自定义头像渲染入口', () => {
     expect(settings).not.toContain('更换图片')
     expect(settings).toContain('pickAvatarSource')
     expect(settings).toContain("setProfileAvatar({ kind: 'custom', bytes })")
-    expect(settings).toContain("avatarError.value = '保存头像失败，请稍后重试'")
+    expect(settings).toContain("avatarError.value = tr('保存头像失败，请稍后重试')")
   })
 
   it('群头像覆盖会话列表、聊天顶部和成员面板并提供管理入口', () => {

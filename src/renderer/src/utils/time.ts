@@ -1,3 +1,4 @@
+import { tr } from './i18n'
 function isSameDay(a: Date, b: Date): boolean {
   return (
     a.getFullYear() === b.getFullYear() &&
@@ -17,7 +18,7 @@ export function listTime(ts: number): string {
   const now = new Date()
   if (isSameDay(d, now)) return hhmm(d)
   const yesterday = new Date(now.getTime() - 86_400_000)
-  if (isSameDay(d, yesterday)) return '昨天'
+  if (isSameDay(d, yesterday)) return tr('昨天')
   return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 

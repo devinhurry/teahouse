@@ -1,3 +1,4 @@
+import { parseSystemMessage } from '../../i18n/messages'
 import type DatabaseT from 'better-sqlite3'
 import type { FileRefView, MessageView, PkRefView } from '../../shared/ipc'
 import { parsePkRef } from '../../shared/pk'
@@ -34,22 +35,34 @@ export interface NewMessage {
 
 /** 行 → 渲染层视图（chat 与 files 服务共用） */
 export function msgRowToView(row: MsgRow): MessageView {
+  return {
+    id: row.id,
+    convId: row.conv_id,
+    senderId: row.sender_id,
+    isMine: row.is_mine !== 0,
+    ...messagePreview(row),
+    ts: row.ts,
+    seq: row.seq,
+    status: row.status as MessageView['status'],
+    replyTo: row.reply_to || undefined
+  }
+}
+
+export function messagePreview(row: Pick<MsgRow, 'kind' | 'content' | 'file_ref'>): Pick<MessageView, 'kind' | 'text' | 'fileRef' | 'pkRef' | 'systemRef'> {
   let fileRef: FileRefView | undefined
   let pkRef: PkRefView | undefined
   if (row.kind === 'pk') {
     pkRef = parsePkRef(row.file_ref) ?? undefined
   } else if (row.file_ref) {
     try {
-      fileRef = JSON.parse(row.file_ref) as FileRefView
+      const parsed = JSON.parse(row.file_ref) as FileRefView | null
+      if (parsed && typeof parsed.transferId === 'string') fileRef = parsed
     } catch {
       fileRef = undefined
     }
   }
+  const systemRef = row.kind === 'system' ? parseSystemMessage(row.file_ref) : undefined
   return {
-    id: row.id,
-    convId: row.conv_id,
-    senderId: row.sender_id,
-    isMine: row.is_mine !== 0,
     kind:
       row.kind === 'file' ||
       row.kind === 'image' ||
@@ -61,10 +74,7 @@ export function msgRowToView(row: MsgRow): MessageView {
     text: row.content,
     fileRef,
     pkRef,
-    ts: row.ts,
-    seq: row.seq,
-    status: row.status as MessageView['status'],
-    replyTo: row.reply_to || undefined
+    ...(systemRef ? { systemRef } : {})
   }
 }
 

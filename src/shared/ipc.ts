@@ -1,3 +1,4 @@
+import type { Language, SystemMessage } from './i18n'
 // IPC 契约：main 与 renderer 之间唯一的对话词汇表（tech-design §4）。
 // 通道名、请求/响应类型、preload 暴露的 API 形状都只在这里定义。
 
@@ -237,6 +238,7 @@ export interface ConversationView {
   muted: boolean
   mentioned: boolean
   preview: string
+  previewMessage?: MessagePreview
 }
 
 export interface TableTextMeta {
@@ -265,6 +267,10 @@ export interface FileRefView {
 
 export type { PkRefView }
 
+export type MessagePreview = Pick<MessageView, 'kind' | 'text' | 'pkRef' | 'systemRef'> & {
+  fileRef?: Pick<FileRefView, 'name' | 'dir'>
+}
+
 export interface MessageView {
   id: string
   convId: string
@@ -274,6 +280,7 @@ export interface MessageView {
   text: string
   fileRef?: FileRefView
   pkRef?: PkRefView
+  systemRef?: SystemMessage
   ts: number
   seq: number
   status: 'sending' | 'sent' | 'queued' | 'failed' | 'canceled' | 'recalled'
@@ -458,6 +465,7 @@ export interface MessageGroupHit {
   peerId: string
   count: number
   snippet: string
+  previewMessage?: MessagePreview
   latestSeq: number
   latestMsgId: string
   ts: number
@@ -526,6 +534,7 @@ export interface SettingsView {
   hideOnCapture: boolean
   autoLaunch: boolean
   closeToTray: boolean
+  language: Language
   theme: 'light' | 'dark'
   fontScale: 100 | 110 | 125
   showMessagePreview: boolean
@@ -680,6 +689,7 @@ export interface AppSettingsPatch {
   hideOnCapture?: boolean
   autoLaunch?: boolean
   closeToTray?: boolean
+  language?: Language
   theme?: SettingsView['theme']
   fontScale?: SettingsView['fontScale']
   showMessagePreview?: boolean

@@ -1,3 +1,4 @@
+import { tr } from './i18n'
 /**
  * 表格粘贴提示条的纯逻辑（决议 #270）。
  * 粘贴识别出表格后不再直接发图片，只把原文插入草稿并给出「发送为图片」入口，
@@ -19,7 +20,7 @@ export interface TablePasteHint {
 }
 
 export function tablePasteHintText(oversize: boolean): string {
-  return oversize ? '表格过大，只能按图片发送' : '检测到表格'
+  return oversize ? tr('表格过大，只能按图片发送') : tr('检测到表格')
 }
 
 /** 草稿仍是插入后的原样才保留提示条：用户一动内容，捕获的表格就过期了 */
