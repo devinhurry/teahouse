@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { tr } from '../utils/i18n'
+import { screenStatusText } from '../utils/remote-view-text'
+import type { ScreenState, ScreenAvailability } from '../../../shared/remote-view'
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { usePeersStore } from '../stores/peers'
 import { useChatStore } from '../stores/chat'
@@ -72,6 +74,33 @@ const transfersStore = useTransfersStore()
 transfersStore.init()
 
 const draft = ref('')
+const screenState = ref<ScreenState | null>(null)
+const screenAvailability = ref<ScreenAvailability | null>(null)
+const screenFeedback = ref('')
+let stopScreenState: (() => void) | undefined
+function receiveScreenState(state: ScreenState | null): void {
+  if (state && (!screenState.value || state.revision >= screenState.value.revision)) screenState.value = state
+}
+async function refreshScreenAvailability(): Promise<void> {
+  screenAvailability.value = await window.pantry.getScreenAvailability()
+}
+const screenDisabledReason = computed(() => {
+  if (!peerOnline.value) return tr('对方离线，无法查看屏幕')
+  if (!screenAvailability.value?.view) return screenAvailability.value?.reason || tr('正在检查屏幕协助能力')
+  if (!peer.value?.caps.includes(CAPS.remoteShare)) return tr('对方当前系统暂不支持共享屏幕')
+  if (screenState.value && screenState.value.phase !== 'ended' && screenState.value.peerId !== peer.value?.nodeId) return tr('请先结束当前屏幕协助')
+  return ''
+})
+async function requestScreen(): Promise<void> {
+  if (screenDisabledReason.value || !peer.value) return
+  const id = peer.value.nodeId
+  screenFeedback.value = ''
+  try {
+    const result = await window.pantry.requestScreen(id)
+    if (peer.value?.nodeId !== id) return
+    if (!result.ok) screenFeedback.value = result.reason === 'rate-limited' ? tr('请求过于频繁，请稍后再试') : tr('暂时无法发起屏幕协助，请检查双方状态')
+  } catch { if (peer.value?.nodeId === id) screenFeedback.value = tr('暂时无法发起屏幕协助，请检查双方状态') }
+}
 const dragging = ref(false)
 
 // 可拖拽调节的输入框高度（决议 #127）：拖输入区顶部手柄上下改 .input-shell 高度，
@@ -409,6 +438,10 @@ function onEscape(event: KeyboardEvent): void {
 }
 
 onMounted(async () => {
+  stopScreenState = window.pantry.onScreenState(receiveScreenState)
+  void window.pantry.getScreenState().then(receiveScreenState)
+  void refreshScreenAvailability()
+  window.addEventListener('focus', refreshScreenAvailability)
   document.addEventListener('keydown', onEscape)
   document.addEventListener('mousedown', onDocumentPointerDown)
   refreshInputFont()
@@ -443,6 +476,8 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  stopScreenState?.()
+  window.removeEventListener('focus', refreshScreenAvailability)
   rememberConversationScroll()
   document.removeEventListener('keydown', onEscape)
   bottomKeeper?.disconnect()
@@ -463,6 +498,7 @@ onUnmounted(() => {
 watch(
   () => chatStore.activeConv?.peerId,
   (id) => {
+    screenFeedback.value = ''
     showMembers.value = false
     // 文件柜面板跟着会话走：留着会直接挂到新对端身上，对方离线 / 不支持时
     // 顶部按钮已经灰掉、面板却还开着报错，状态自相矛盾（决议 #278）
@@ -1837,6 +1873,9 @@ async function onDrop(event: DragEvent): Promise<void> {
       </template>
       <span v-if="isGroup" class="state">{{ tr('{0} 人', { 0: group?.members.length ?? 0 }) }}</span>
       <span class="head-spacer"></span>
+      <button v-if="!isGroup && peer?.caps.includes(CAPS.remoteView)" class="head-btn"
+        :disabled="!!screenDisabledReason" :title="screenDisabledReason || tr('查看屏幕')" :aria-label="screenDisabledReason || tr('查看屏幕')"
+        @click="requestScreen"><PantryIcon name="screen" :size="17" /></button>
       <button
         v-if="!isGroup"
         class="head-btn"
@@ -1851,6 +1890,10 @@ async function onDrop(event: DragEvent): Promise<void> {
         <PantryIcon name="users" :size="17" />
       </button>
     </header>
+
+    <p v-if="screenFeedback || (!isGroup && screenState?.peerId === peer?.nodeId)" class="screen-status" role="status">
+      {{ screenFeedback || (screenState ? screenStatusText(screenState) : '') }}
+    </p>
 
     <!-- 对方的文件柜（决议 #273）：与群信息面板同一形态，覆盖右侧一整列 -->
     <FileCabinetPanel
@@ -2178,6 +2221,8 @@ async function onDrop(event: DragEvent): Promise<void> {
 </template>
 
 <style scoped>
+.screen-status { margin: 0; padding: 8px 16px; color: var(--text-2); background: var(--bg-list); font-size: var(--font-sm); border-bottom: 1px solid var(--line); }
+.head-btn:disabled { color: var(--text-3); cursor: default; }
 .chat {
   display: flex;
   flex-direction: column;

@@ -166,6 +166,8 @@ import { resolveDevRendererUrl } from './util/renderer-url'
 import { canServeUpdates } from './util/release-format'
 import { measureUploadPaths } from './util/upload-measure'
 import { isWindows7 } from './util/windows-version'
+import { RemoteViewWindows } from './windows/remote-view-window'
+import type { ScreenPayload } from '../shared/protocol'
 import { applyWindowZoom } from './util/window-zoom'
 import {
   findLocalUpdatePackage,
@@ -276,6 +278,14 @@ if (!gotLock) {
   let avatarPruneTimer: ReturnType<typeof setTimeout> | null = null
   let appState: AppState | null = null
   let rangeSync: RangeSync | null = null
+  const remoteView = new RemoteViewWindows(() => mainWindow, () => {
+    if (!appState || !remoteView.service) return
+    const caps = [...appState.profile.caps.filter(cap => cap !== CAPS.remoteView && cap !== CAPS.remoteShare), ...remoteView.capabilities()]
+    if (caps.join(',') === appState.profile.caps.join(',')) return
+    appState.profile.caps = caps
+    appState.profile.profileRev += 1
+    discovery?.announceProfile()
+  })
   let tray: Tray | null = null
   let isQuitting = false
   let nudgeShakeOrigin: [number, number] | null = null
@@ -1196,6 +1206,7 @@ if (!gotLock) {
   }
 
   async function startNet(): Promise<void> {
+    let tcpReady = false
     const state = appState
     if (!state) return
     // 手动节点 = 环境变量（联调用）∪ 设置持久化（F-DISC-2 第一板斧）
@@ -1243,9 +1254,23 @@ if (!gotLock) {
         queue: new QueueRepo(db),
         dedup: new DedupRepo(db)
       })
-      messenger.on('incoming', (env: Envelope) => {
+      messenger.on('incoming', (env: Envelope, source?: { address: string }) => {
         if (env.type === MSG_TYPES.update) handleUpdateRequest(env as Envelope<UpdateReqPayload>)
         else if (env.type === MSG_TYPES.share) handleShareCtl(env as Envelope<SharePayload>)
+        else if (env.type === MSG_TYPES.screen && source) remoteView.service?.receive(env.from, source.address, env.payload as ScreenPayload)
+      })
+      remoteView.attach({
+        selfId: state.nodeId,
+        peer: id => {
+          const peer = registry?.get(id)
+          return peer ? { ip: peer.ip, tcpPort: peer.profile.tcpPort, online: peer.online,
+            name: resolvePeerDisplayName(id) || peer.profile.nick, caps: peer.profile.caps } : null
+        },
+        send: (id, payload, bestEffort, signal) => {
+          const env = makeEnvelope(MSG_TYPES.screen, state.nodeId, payload)
+          if (bestEffort) { messenger!.sendBestEffort(id, env); return Promise.resolve(true) }
+          return messenger!.sendReliable(id, env, signal)
+        }
       })
       chat = new ChatService({
         selfId: state.nodeId,
@@ -1289,6 +1314,7 @@ if (!gotLock) {
       onConvs(chat.listConversations())
 
       files = new FilesService({
+        openScreen: (socket, frame) => remoteView.service?.open(socket, frame) ?? null,
         selfId: state.nodeId,
         messenger,
         registry,
@@ -1321,6 +1347,7 @@ if (!gotLock) {
       files.on('transfer', (view) => broadcastEvent(IpcEvents.transferUpdated, view))
       try {
         await files.start() // TCP 数据端口
+        tcpReady = true
       } catch (err) {
         console.error('[files] TCP 端口监听失败，文件发送可用但无法被拉取：', err)
       }
@@ -1385,6 +1412,7 @@ if (!gotLock) {
     // 注册表变化 → 节流 200ms 推给渲染层（tech-design §4 事件推送约定）
     let pushTimer: ReturnType<typeof setTimeout> | null = null
     registry.on('updated', () => {
+      remoteView.service?.checkPeer()
       if (pushTimer) return
       pushTimer = setTimeout(() => {
         pushTimer = null
@@ -1403,6 +1431,7 @@ if (!gotLock) {
 
     try {
       await udp.start()
+      remoteView.setNetworkReady(tcpReady)
       discovery.start()
       rangeSync?.start()
       scheduleExistingRemoteRangeScans()
@@ -3046,6 +3075,7 @@ if (!gotLock) {
   })
 
   app.whenReady().then(async () => {
+    await remoteView.start()
     void imagePreview.prune()
     const updateCaps = canAdvertiseUpdateSource() ? [CAPS.updateSource] : []
     appState = loadAppState(app.getPath('userData'), app.getVersion(), tcpPort, udpPort, [
@@ -3168,6 +3198,7 @@ if (!gotLock) {
   app.on('will-quit', () => globalShortcut.unregisterAll())
 
   app.on('before-quit', () => {
+    remoteView.close()
     isQuitting = true
     stopTrayUnreadFlash(tray)
     rangeSync?.stop()

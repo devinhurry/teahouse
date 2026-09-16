@@ -4,8 +4,20 @@ import type { Language, SystemMessage } from './i18n'
 
 import type { Platform, ShareDenyReason, ShareEntry, ShareMode } from './protocol'
 import type { PkGame, PkRefView } from './pk'
+import type { ScreenAvailability, ScreenState, ScreenSource, ScreenMode, ScreenImage, ScreenSample, ScreenRequestResult } from './remote-view'
 
 export const IpcChannels = {
+  screenRequest: 'screen:request',
+  screenSources: 'screen:sources',
+  screenRespond: 'screen:respond',
+  screenReady: 'screen:ready',
+  screenFail: 'screen:fail',
+  screenStop: 'screen:stop',
+  screenState: 'screen:get-state',
+  screenAvailability: 'screen:availability',
+  screenFrame: 'screen:frame',
+  screenConsumed: 'screen:consumed',
+  screenMode: 'screen:set-mode',
   appInfo: 'app:info',
   appOpenUrl: 'app:open-url',
   netState: 'net:get-state',
@@ -119,6 +131,9 @@ export const IpcChannels = {
 
 /** main → renderer 的事件推送 */
 export const IpcEvents = {
+  screenState: 'screen:state',
+  screenSample: 'screen:sample',
+  screenImage: 'screen:image',
   peersUpdated: 'peers:updated',
   netState: 'net:state',
   msgNew: 'msg:new',
@@ -745,6 +760,20 @@ export interface CaptureFailureNotice {
 
 /** preload 经 contextBridge 暴露到 window.pantry 的 API 形状 */
 export interface PantryApi {
+  requestScreen(peerId: string): Promise<ScreenRequestResult>
+  getScreenSources(sessionId: string): Promise<ScreenSource[]>
+  respondScreen(sessionId: string, accepted: boolean, sourceId?: string): Promise<boolean>
+  screenReady(sessionId: string): Promise<boolean>
+  failScreen(sessionId: string, reason: 'permission-denied' | 'capture-failed'): Promise<void>
+  stopScreen(sessionId: string): Promise<void>
+  getScreenState(): Promise<ScreenState | null>
+  getScreenAvailability(): Promise<ScreenAvailability>
+  sendScreenFrame(sessionId: string, seq: number, bytes: ArrayBuffer): Promise<boolean>
+  consumeScreenFrame(sessionId: string, seq: number): Promise<boolean>
+  setScreenMode(sessionId: string, mode: ScreenMode): Promise<boolean>
+  onScreenState(listener: (state: ScreenState) => void): () => void
+  onScreenSample(listener: (sample: ScreenSample) => void): () => void
+  onScreenImage(listener: (image: ScreenImage) => void): () => void
   getAppInfo(): Promise<AppInfo>
   /** 用户点击聊天链接后交给系统浏览器；仅允许 http/https */
   openUrl(url: string): Promise<boolean>

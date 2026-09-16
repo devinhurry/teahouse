@@ -4,7 +4,7 @@
 
 | Field | Value |
 |---|---|
-| Current design | v1.89 for v0.56.2 |
+| Current design | v1.93; v0.58.0 implements independent screen-assistance windows and Auto/manual modes (#310) |
 | Main-window model | Three columns with Chat, Contacts, and File Cabinet tabs |
 | Authority | [ui-design.md](../ui-design.md) is the canonical UI and interaction record |
 
@@ -185,6 +185,46 @@ About shows a compact LAN Update row with status, help tooltip, and action. It s
 
 Open your cabinet from the navigation rail, or another peer's cabinet from the peer list/private chat. Permission, offline state, failures, selection, transfer progress, and destination guidance remain in the current cabinet surface without adding chat media entries.
 
+<a id="remote-view"></a>
+
+### 7.8 Remote desktop viewing (#310, v0.58.0)
+
+Scope follows [requirements](requirements.md#remote-view). Use an independent non-modal window with explicit per-session screen selection; main-window chat remains usable. The canonical Chinese UI section is §7.9.
+
+#### Invitation and consent
+
+- Add “View screen” to the private-chat header; omit it from groups. Hide it for legacy peers without `rv1`; disable with a specific reason for unavailable roles, offline peers, or busy sessions. Keep gray + “Offline” text rather than color alone.
+- Clicking shows waiting/cancel. Repeated clicks locate the current session, and changing chats never retargets it. Do not store screen sessions as messages or generate unread counts.
+- The sharer sees the viewer's local contact display name and IP, an explanation of view-only access to the selected screen, and “Choose screen” / “Decline”. Receipt alone does not enumerate or capture.
+- Entering selection displays local screen thumbnails/names; the user selects a screen and explicitly starts sharing. Never silently accept the primary display. Show permission denial/cancel/failure; system dialogs remain inside the request deadline.
+- Open the always-on-top consent window with `showInactive`, including when main is hidden. Keep typing focus where it is; opening consent never starts capture. Duplicate/rate-limited invitations do not open another window.
+
+#### Viewing and persistent sharing status
+
+| Role | Presentation and behavior |
+|---|---|
+| Viewer | Independent resizable, non-modal window titled Screen assistance, with peer name and IP in the toolbar. Proportional image, fit, received-pixel 100%, local pan/scroll, and End. Fit initial bounds to the work area and permit maximize. No input forwarding, OCR, saving, or recording controls. |
+| Sharer | Compact always-visible, always-on-top status window showing the viewer, selected screen, and Stop sharing. Show connecting before active. Do not steal typing focus; do not allow minimizing away the stop entry. Close stops sharing, while chat remains usable. |
+
+The local sharing indicator may appear in transmitted images; do not promise cross-platform window exclusion. Validate source-pointer capture and never present the viewer's pointer as the sharer's operation position.
+
+Hiding main or selecting a different chat leaves a separate session running. Minimized viewers keep low-rate reception. Closing the assistance window or End/Stop ends immediately without another confirmation. Escape respects IME and native select interaction; elsewhere it ends the session, instead of applying the main window's hide-to-tray shortcut.
+
+**Smoothness selector:** Auto (default), Economy (3 fps), Standard (5 fps), and Smooth (10 fps). Show “Target: N fps” separately, never as measured throughput. Changes affect subsequent requests without reconnecting; all modes share quality. Reset to Auto for each new session. A minimized viewer temporarily uses a 3 fps target.
+
+#### State feedback and accessibility
+
+| State | Visible feedback |
+|---|---|
+| requesting / awaiting-consent | Waiting for consent / incoming request, with cancel or decline |
+| preparing | Preparing screen, system permission may be required; cancel available |
+| connecting | Consent received, connecting; show an empty waiting area |
+| active | Live image on viewer; named viewer and persistent stop on sharer |
+| No refreshed frame for 2 seconds | Explicit stale-image message above the image until a new frame; terminate at protocol deadline |
+| ended | Destroy the assistance window and image; show the localized reason in the corresponding private chat: decline, no answer, disconnected, locked, stopped, unsupported environment, or failure. A new request needs new consent. |
+
+Keep tokens, sequence numbers, wire fields, and stack traces out of user flows. Announce meaningful state changes accessibly without announcing every frame. Use labeled native buttons, Tab/Enter/Space, native-window focus order for consent, and IME/consumed-event-aware Escape. Reuse visual tokens and reduced-motion behavior; locally validate Chinese/English and minimum sizes; validate high DPI on target machines.
+
 ## 8. Settings and file cabinet
 
 ### 8.1 Settings
@@ -248,6 +288,9 @@ Circular avatars, local line icons, file-type artwork, tray graphics, and brand 
 
 ## 10. Change record
 
+- **2026-09-16, v1.91, #308, documentation only:** record invitation, per-session selection/consent, persistent stop feedback, state/termination flows, and the proposed separate viewer. Presentation is pending; application **v0.57.0** has no such entry yet.
+
+- **2026-09-16, proposal supplement:** describe Auto/Economy/Standard/Smooth selection, pending confirmation of default/persistence behavior. No implementation.
 - **2026-08-10, v1.75, decision #285:** added the maintained English current-state UI and interaction reference plus bidirectional language navigation. Product UI language and runtime behavior remain unchanged. Repository version 0.51.0 → 0.51.1.
 - **2026-08-26, v1.76, decision #286:** made capture startup failures visible through a dismissible, accessible in-app status or a system notification when the app was already hidden; Linux capture now waits for window hiding and compositor settling to avoid including the app. Repository version 0.51.1 → 0.51.2.
 - **2026-08-27, v1.77, decision #287:** added an accessible sticker-import action with progress/result feedback, sized four-column sticker rows to their square items inside the fixed 200px scrolling region, and enabled saved stickers in groups when another member is online. Repository version 0.51.2 → 0.52.0.
@@ -271,3 +314,5 @@ Circular avatars, local line icons, file-type artwork, tray graphics, and brand 
 ## Decision #307: Language selection
 
 General settings and onboarding expose “语言 / Language” with “简体中文” and “English”. Changes apply to open windows without losing input. Localize Naive UI, accessibility labels, prompts, tray and notifications; check long English labels at minimum sizes. User content stays verbatim. Native operating-system dialogs and installer chrome follow their own language settings.
+
+- 2026-09-16, decision #310: v0.58.0 implements view-only remote assistance, independent windows, Auto (10/5/3 fps) and manual Economy/Standard/Smooth modes. Consent, one-frame backpressure, bounded deadlines, lock detection and forced window cleanup are covered by local tests. Physical target-platform permission and performance checks remain pending; this iteration is not a release.

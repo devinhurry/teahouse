@@ -116,6 +116,7 @@ interface GroupOfferContext {
 }
 
 export interface FilesDeps {
+  openScreen?: import('../net/transfer').OutgoingLookup['openScreen']
   selfId: string
   messenger: Messenger
   registry: PeerRegistry
@@ -168,7 +169,8 @@ export class FilesService extends EventEmitter {
           if (!this.canServeOutgoing(transferId, out)) return null
           return out.files.get(fileId) ?? null
         },
-        receiveMessage: (env) => this.deps.messenger.acceptTcpEnvelope(env),
+        receiveMessage: (env, ip) => this.deps.messenger.acceptTcpEnvelope(env, ip),
+        openScreen: deps.openScreen,
         supportsWait: (peerId) => this.peerSupportsTransferWait(peerId)
       },
       deps.bindAddress

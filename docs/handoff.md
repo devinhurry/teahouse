@@ -3,7 +3,7 @@
 > [简体中文](handoff.md) · [English](en/handoff.md)
 
 > 给接手本项目的任何 AI 代理或开发者。读完本文 + [AGENTS.md](../AGENTS.md) 即可无缝继续开发。
-> 最后更新：2026-09-09（**v0.57.0，决议 #307 中英文模式**）。仍遵守 Electron 22.3.27 / Node16 / Chrome108 / 纯内网红线；当前状态以 `git log` 与各文档变更记录为准。
+> 最后更新：2026-09-16（**v0.58.0 已实现远程桌面查看（#310）：默认自动及 3/5/10 手动档；目标机权限和性能待验收**）。仍遵守 Electron 22.3.27 / Node16 / Chrome108 / 纯内网红线；当前状态以 `git log` 与各文档变更记录为准。
 > 历史摘要（截至 2026-06-28，**v0.29.6，Debian 10 / UOS 20 arm64 撤掉老版系统 mksquashfs**）：公开仓库统一为 `skyjt/teahouse`，v0.11.4 为发布整理版；v0.12.0 补齐群改名系统提示（#87）与私聊顶部 IP 完整展示（#88）；v0.12.1 修复发送端先整文件预读 SHA-256 再发数据导致 10GB 级文件接受后长时间 0B 的问题；v0.13.x–v0.16.x 打磨文件卡片、关于页、独立图片查看窗口、本地 OCR、品牌 SVG、通知兼容、私聊震动和会话滚动；v0.17.0 新增 `scan-ranges` 网段记录低频同步（#114）；v0.18.0 新增左侧刷新全局用户（#115）；v0.19.x 打磨左侧导航 tooltip / 自己信息卡 / 焦点框（#116–#121）；v0.20.0 完成英文品牌名 Teahouse 更名（#124）；v0.21.x 完成移除会话删除聊天内容、置顶底色、顶栏等高与输入框拖拽、右键菜单关闭、文件卡片对齐、消息缓存索引、高频渲染路径优化和安全扫描报告修复（#125–#138）；v0.22.x 完成 PK 分歧解决与 UI 打磨（#139–#148）；v0.23.x–v0.26.x 完成设置页重组、网段表格、默认目录与图片传输修复；v0.27.x 推进局域网 P2P 自更新，当前已完成发现提示、更新请求协议地基、关于页主动检测 / 索包入口、`purpose:"update"` 更新包隔离接收、`update:request` 向最佳源请求已有本地安装包回传，以及设置-关于检测更新区按方案 A 并入键值行、机制说明收进圆形问号 tooltip、tooltip 上浮防裁切（#166–#173）；v0.28.x 完成私聊文件「直接发送」、拖拽 / 粘贴授权、文件卡 UI 收紧、默认接收目录统一与第三方截图粘贴去重；v0.29.0 新增 Linux arm64 deb/AppImage 发布 job，并让自更新安装包查找按架构匹配；v0.29.1 将 arm64 容器内发布脚本独立为 `scripts/ci-linux-arm64.sh`；v0.29.2 取消 QEMU，Linux arm64 发布 job 改用 GitHub 远程 `ubuntu-22.04-arm` runner + Debian 10 arm64 容器；v0.29.3 安装系统 fpm/mksquashfs 并将 Linux dist 脚本显式限定 `deb/AppImage` 架构；v0.29.4 尝试预装 `ffi 1.17.4`；v0.29.5 改为 `libffi-dev` + Ruby 2.5 兼容的 `ffi 1.15.5`；v0.29.6 撤掉 `USE_SYSTEM_MKSQUASHFS`，避免 Debian 10 老版 mksquashfs 不支持 AppImage `-offset`。
 > 当前补充：2026-07-03（**v0.31.3，密码组群管理入口已修复**）：v0.31.1 修复图片查看器小图窗口最小尺寸；v0.31.2 实现决议 #192，会话列表 / 联系人 / 通知 / 托盘 / 震动等入口默认重载最新 50 条并滚到底部；v0.31.3 实现决议 #193，群成员面板对有管理密码的讨论组改为内嵌密码输入框，改名、添加成员、移出成员均复用该输入并使用行内失败提示。
 > 当前补充：2026-07-09（**v0.32.3 已发布**）：含全局刷新二次确认（#197）与群成员上限 200（#198）。
@@ -133,7 +133,7 @@ npm run smoke     # 启动 1.5s 干净退出（PANTRY_SMOKE 钩子，CI 同款�
 ```
 
 - 本机三客户端联调：懒人入口用 `npm run dev:2` 一次拉起前两个、`npm run dev:3` 一次拉起三个；也可分别在三个终端跑 `npm run dev:client1`、`npm run dev:client2`、`npm run dev:client3`。三个实例使用 `/tmp/pantry-dev1..3` 和 `17878/27878/37878` UDP 端口、`17879/27879/37879` TCP 端口。
-- 决策落档：新决议追加到 requirements §9 决议记录 / §11 变更记录（编号已到 #307，续 #308+）；协议改动必须 protocol.md 先行。
+- 决策落档：新决议追加到 requirements §9 决议记录 / §11 变更记录（编号已到 #310，续 #311+）；协议改动必须 protocol.md 先行。
 - 与用户协作：**全程中文**；用户技术方向不在网络/协议——技术细节直接定但落档、**不要追问底层**；产品可感知取舍（功能形态/默认参数）用 2-4 个带推荐的选项问他。
 
 ## 3. 代码地图（src/，分层铁律见 AGENTS.md #7）
@@ -150,12 +150,21 @@ main/
   windows/ tray settings-window capture-window tray-icon(base64内嵌)
   index.ts 装配+IPC handlers+通知+截图编排+pantry-img/pantry-sticker 协议
 preload/   contextBridge 唯一入口（window.pantry，类型=shared/ipc.ts 的 PantryApi）
-renderer/  main.ts 公共 bootstrap；renderer-entry.ts 按 hash 动态加载 App/#settings/#capture/#image-viewer；stores(pinia=主进程投影)；components
+renderer/  main.ts 公共 bootstrap；renderer-entry.ts 按 hash 动态加载 App/#settings/#capture/#image-viewer/#remote-view；stores(pinia=主进程投影)；components
 ```
 
 关键不变量：net/ 与 services/ **零 Electron 依赖**（vitest 可直接实例化）；renderer 一切经 `window.pantry`；消息 id=信封 id=去重锚点；群消息同一信封 id 发全员。
 
 ## 4. 下一步
+
+**远程桌面查看（#310，v0.58.0 已实现，尚未发布）**：私聊头部「查看屏幕」→ 对方独立窗口逐次选屏同意 → 查看；默认自动 10/5/3 帧，手动 3/5/10，档位仅在本次会话保留。JPEG 明文经既有 TCP 端口，单帧按需消费，不新增依赖或服务器。
+
+- 阅读定位：[需求 §6.11](requirements.md#remote-view) → [协议 §8.3](protocol.md#remote-view) → [技术 §3.1](tech-design.md#remote-view) → [界面 §7.9](ui-design.md#remote-view)。决议后续从 #311 开始。
+- 代码入口：`services/remote-view.ts` 编排单会话；`net/screen-stream.ts` 管帧流/节奏；`windows/remote-view-window.ts` 管选屏、窗口身份、媒体许可与销毁；`util/linux-screen-lock.ts` 探测 DDE/UKUI；`RemoteViewApp.vue` 为第五动态根。
+- 本地验收：常规五连检查及 `npm run test:screen`（先 build）；`PANTRY_SCREEN_TEST_MS=600000 npm run test:screen` 可做 10 分钟检查。Electron 自测使用本地合成办公页面，覆盖真实媒体流、编码、IPC、回环 TCP、显示与停止，不采集用户桌面。
+- 本轮结果（2026-09-16）：120 文件 / 776 测试及常规五连全部通过；真实 Electron 合成页面查看 10 分钟约 9.45 帧/秒，反向实际媒体/编码/传输和锁屏清理通过。小窗口、双语/主题即时切换及慢帧恢复通过。
+- 后续目标机验收：Win7 x64/ia32、UOS/麒麟的持续采集、鼠标指针、中文表格、DPI、CPU/内存及锁屏；macOS 物理屏幕授权允许/拒绝/撤销。真实双机/跨网段、30 次开始结束和延迟分位数按 tech-design §3.1.6 记录。
+- Linux 没有现成可用 `gdbus` 与 DDE/UKUI 锁状态时禁用能力，失去监视时结束会话；ARM64 Wayland 保留 #289 发屏保护。现有截图成功、构建或合成回环测试均不能替代目标平台结论。
 
 0. **共享文件柜（决议 #271–#277）—— 三步全部完成（v0.49.0）**：需求 requirements §6.10、协议 protocol §8.2、模块与库表 tech-design §3/§4/§5/§12、界面 ui-design §5/§7.8/§8。**硬约束：不新增端口**（控制面复用 UDP 17878 的 `share` 报文，数据面 100% 复用 TCP 17879 的 `purpose:"share-get"|"share-put"`），`net/transfer.ts` 不动、`net/codec.ts` 只加白名单。三个增量已分别提交：
    - **① 我的文件柜 —— 已完成（v0.47.0）**：`config.fileCabinet {root,mode}`、SQLite v14 `share_grants`、`services/share.ts`（`evaluateShareRoot` + `ShareService.modeFor`）、5 个 `share:*` IPC、设置页「我的文件柜」三件套。此步不发任何报文、**未声明 `shr1`**。
@@ -203,3 +212,9 @@ renderer/  main.ts 公共 bootstrap；renderer-entry.ts 按 hash 动态加载 Ap
 > 2026-09-07，v0.56.2（#306）：内置 emoji 恢复原生选区复制、Win7 草稿支持含 emoji 复制 / 剪切；Linux 可编辑文本控件以明确 NumLock 和物理小键盘标记恢复数字输入。本地五连验证通过（115 个测试文件 / 714 测试）；`node scripts/input-selftest.cjs` 使用真实 Electron 22 挂载组件，覆盖 emoji 原生复制 / 粘贴 / 剪切 / 撤销及 31 项小键盘检查。目标 Win7 / UOS 原生事件链仍需真机复测。
 
 > 2026-09-09，v0.57.0（#307，本地开发完成）：新增简体中文 / English 模式；新安装跟随系统、旧配置保留中文，所有窗口即时同步。语言词典本地打包、用户文本保持原文，新增系统提示附结构化元数据，历史提示不迁移。常规五连验证通过（117 个测试文件 / 723 测试），四入口包体预算保持。构建后运行 `node scripts/i18n-selftest.cjs`：真实 Electron 22 隔离配置验证首次向导、四窗口双向切换、聊天草稿与截图选区保留、语言持久化、旧配置升级和非法语言拒绝；UDP/TCP 仅绑定回环，不向真实局域网发包。英文设置最小窗口与截图 / 看图布局已检查；Win7 / UOS 真机界面仍待目标平台复测；安装包发布状态以 GitHub Release 为准。
+
+> 2026-09-16，#308（文档准备）：远程桌面查看的需求、协议、UI、技术和实施/验收清单已分层落档并同步英文；尚未进行采集/网络实现或目标机验证。文档交付与功能交付分开记录。
+
+> 2026-09-16，#309（文档调整）：用户指定默认目标 10 帧/秒；协议限速、JPEG 预算、采样调度和验收口径已同步，功能仍未实现。
+
+- 2026-09-16 决议 #310：v0.58.0 远程桌面查看已实现，更新代码入口、验证命令与目标机待验收项；本轮未发布。

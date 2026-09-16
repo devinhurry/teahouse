@@ -11,6 +11,7 @@ import {
   type Envelope,
   type PullFrame,
   type PullOkFrame,
+  type ScreenOpenFrame,
   type TcpFrame
 } from '../../shared/protocol'
 import { encodeFrame, FrameReader } from './frame'
@@ -30,7 +31,9 @@ export interface OutgoingLookup {
   /** 仅 accepted 状态的传输可被拉取；返回 null 拒绝 */
   resolve(transferId: string, fileId: string): OutgoingFile | null
   /** 超长文本 TCP 控制帧入口；返回 true 表示已接收并应 ACK */
-  receiveMessage?: (env: Envelope) => boolean
+  receiveMessage?: (env: Envelope, remoteAddress: string) => boolean
+  /** 同一监听端口的屏幕连接：只在首帧分流，不占文件供流槽。 */
+  openScreen?: (socket: Socket, frame: ScreenOpenFrame) => ((frame: TcpFrame) => void) | null
   /** 对端是否声明 tw1（决议 #211）：只有声明者才能收 wait 帧，旧端遇未知帧型会断链 */
   supportsWait?: (peerId: string) => boolean
 }
@@ -213,6 +216,8 @@ export class TransferServer extends EventEmitter {
     /** wait 保活（决议 #211）：排队 / 哈希收尾期间周期告知对端「仍在处理」 */
     let waitTimer: ReturnType<typeof setInterval> | null = null
     const socketTransfers = new Set<string>()
+    let firstFrame = true
+    let screenFrames: ((frame: TcpFrame) => void) | null = null
 
     const trackTransfer = (transferId: string): void => {
       if (socketTransfers.has(transferId)) return
@@ -251,13 +256,24 @@ export class TransferServer extends EventEmitter {
 
     const reader = new FrameReader(
       (frame) => {
+        if (socket.destroyed) return
+        if (screenFrames) { screenFrames(frame); return }
+        if (firstFrame && frame.type === 'screen-open') {
+          firstFrame = false
+          socket.setTimeout(0)
+          screenFrames = this.lookup.openScreen?.(socket, frame) ?? null
+          if (!screenFrames) socket.destroy()
+          return
+        }
+        firstFrame = false
+        if (frame.type.startsWith('screen-')) { socket.destroy(); return }
         socket.setTimeout(this.limits.idleTimeoutMs)
         if (frame.type === 'finish') {
           this.emit('served', frame.transferId)
           return
         }
         if (frame.type === 'msg') {
-          const ok = this.lookup.receiveMessage?.(frame.envelope) ?? false
+          const ok = this.lookup.receiveMessage?.(frame.envelope, socket.remoteAddress ?? '') ?? false
           if (ok) send({ type: 'msg-ack', ackFor: frame.envelope.id })
           else send({ type: 'err', reason: 'bad-msg' })
           return
