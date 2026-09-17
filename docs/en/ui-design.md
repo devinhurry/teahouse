@@ -4,7 +4,7 @@
 
 | Field | Value |
 |---|---|
-| Current design | v1.96; v0.59.1 aligns assistance cards by initiator (#313) |
+| Current design | v1.97; v0.59.2 uses one compact assistance card per session (#314) |
 | Main-window model | Three columns with Chat, Contacts, and File Cabinet tabs |
 | Authority | [ui-design.md](../ui-design.md) is the canonical UI and interaction record |
 
@@ -330,3 +330,5 @@ Decision #312 (v0.59.0) supersedes the 440×180 sharing status: use the same opa
 The confirmation uses the Chrome 108 native dialog focus scope. Global Escape handling recognizes open native dialogs; the dialog explicitly centers itself, and backdrop scrim tokens are defined on the pseudo-element because this Chromium baseline does not inherit root variables there.
 
 - 2026-09-17, v1.96, #313, application **0.59.1**: place self-initiated assistance cards on the right and peer-initiated cards on the left, using the ordinary message row spacing and width constraint, capped at 340px. Status updates and history reload preserve direction. Omit delivery ticks for these lifecycle records; time separators and other system notices remain centered.
+
+- 2026-09-17, v1.97, #314, application **0.59.2**: reuse one initiator-aligned card through request, start and end. Cap width at 260px and use ordinary mine/peer bubble colors. Two compact lines show icon/name/current status, then request time (start time once connected) and completed duration; other stages show View only. Target about 64px height at default font size, allowing wrapping for long dates, translations or enlarged text. Full request/start/end times, duration and reason remain in native hover and accessible text. Remove direction prose, the timing table and normal-session banner; keep request-failure feedback. No ticking timers or continuous animation.

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { tr } from '../utils/i18n'
-import { screenStatusText } from '../utils/remote-view-text'
 import type { ScreenState, ScreenAvailability } from '../../../shared/remote-view'
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { usePeersStore } from '../stores/peers'
@@ -1905,9 +1904,7 @@ async function onDrop(event: DragEvent): Promise<void> {
       </button>
     </header>
 
-    <p v-if="screenFeedback || (!isGroup && screenState?.phase !== 'ended' && screenState?.peerId === peer?.nodeId)" class="screen-status" role="status">
-      {{ screenFeedback || (screenState ? screenStatusText(screenState) : '') }}
-    </p>
+    <p v-if="screenFeedback" class="screen-status" role="status">{{ screenFeedback }}</p>
 
     <!-- 对方的文件柜（决议 #273）：与群信息面板同一形态，覆盖右侧一整列 -->
     <FileCabinetPanel

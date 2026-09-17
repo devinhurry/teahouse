@@ -4,7 +4,7 @@
 
 | Field | Value |
 |---|---|
-| Status | v0.59.1 aligns assistance cards by initiator (#313); v0.59.0 adds confirmation, history and an edge sharing strip (#312); Auto and manual 3/5/10 fps remain; target hardware acceptance pending; Neiwangtong compatibility remains paused by #199 |
+| Status | v0.59.2 uses one compact card per assistance session (#314); Auto and manual 3/5/10 fps remain; target hardware acceptance pending; Neiwangtong compatibility remains paused by #199 |
 | Updated | 2026-09-17 |
 | Authority | The [Chinese requirements document](../requirements.md) is the canonical feature and decision record. This document translates the current effective requirements. |
 
@@ -256,3 +256,5 @@ Keep the existing view-only consent flow and four modes. Fix clipped source-sele
 Decision #312 (v0.59.0): confirm the explanation and target before sending a request. Each legitimate request creates one local system card in each private chat, updated in place through consent, rejection, cancellation, timeout and completion. Connected sessions show start/end times and monotonic duration, excluding invitation waiting. Unfinished records after abnormal exit show interruption with unknown end/duration. Cards carry no screen images, credentials or selected-source metadata; existing chat export/backup includes only these lifecycle records. No unread increments, forwarding or recall.
 
 - 2026-09-17, v2.90, decision #313, application **0.59.1**: align assistance cards like ordinary messages using the persisted initiator (`isMine`): self on the right, peer on the left. Preserve direction through rejection, cancellation, completion and history reload. Reuse existing row layout and spacing; no wire/storage changes. Ordinary system notices remain centered.
+
+- 2026-09-17, v2.91, #314, application **0.59.2**: keep one card on the initiator's side for each session, updating it through request, start and end without appending lifecycle messages. Only a new request creates another card. Show a compact name/status and time/duration summary; keep full timing and reasons in native hover and accessible descriptions. Remove redundant direction text, timing table and normal-session banner, preserving request-failure feedback. No ticking timers, protocol or storage changes.

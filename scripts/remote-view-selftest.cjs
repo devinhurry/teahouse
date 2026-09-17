@@ -170,9 +170,11 @@ async function run() {
   await until(() => main.webContents.executeJavaScript('!!document.querySelector("button[aria-label=查看屏幕]")'), '私聊查看入口')
   const requestedPeer = () => main.webContents.executeJavaScript('document.querySelector("button[aria-label=查看屏幕]").focus(); document.querySelector("button[aria-label=查看屏幕]").click()')
   const screenRecords = () => main.webContents.executeJavaScript(`window.pantry.pageMessages(${JSON.stringify('single:' + peerId)}, null, 50).then(rows => rows.filter(row => row.screenRef))`)
-  async function assertCardAlignment() {
+  async function assertCardAlignment(count) {
     const records = await screenRecords()
-    assert.ok(records.length > 0)
+    assert.equal(records.length, count, '每次请求只保留一条数据库记录')
+    assert.equal(await main.webContents.executeJavaScript('document.querySelectorAll(".screen-card").length'), count, '开始结束不追加聊天卡片')
+    assert.equal(await main.webContents.executeJavaScript('!!document.querySelector(".screen-status")'), false, '正常会话不重复显示顶部状态条')
     for (const record of records) {
       assert.equal(record.isMine, record.screenRef.role === 'viewer', '按请求发起方保存方向')
       const bounds = await main.webContents.executeJavaScript(`(() => {
@@ -180,11 +182,14 @@ async function run() {
         const card = row?.querySelector('.screen-card');
         if (!card) return null;
         const r = row.getBoundingClientRect(), c = card.getBoundingClientRect();
-        return { left: c.left - r.left, right: r.right - c.right, width: c.width, rowWidth: r.width, status: !!row.querySelector('.status') };
+        return { left: c.left - r.left, right: r.right - c.right, width: c.width, height: c.height, rowWidth: r.width,
+          overflow: card.scrollWidth > card.clientWidth, status: !!row.querySelector('.status'), details: card.title };
       })()`)
       assert.ok(bounds, '卡片进入普通消息行')
       assert.ok(Math.abs(record.isMine ? bounds.right : bounds.left) < 1, '自己发起靠右，对方发起靠左')
-      assert.ok(bounds.width > 0 && bounds.width <= Math.min(340, bounds.rowWidth * .68) + 1, '卡片遵守普通消息宽度约束')
+      assert.ok(bounds.width > 0 && bounds.width <= Math.min(260, bounds.rowWidth * .68) + 1, '紧凑卡片宽度不超过 260px')
+      assert.ok(bounds.height <= 84 && !bounds.overflow, '常见状态卡片保持两行，较长翻译允许换行且不溢出')
+      assert.ok(bounds.details.includes('：'), '完整起止时间保留在原生悬停详情')
       assert.equal(bounds.status, false, '协助记录不显示消息送达勾选')
     }
   }
@@ -229,9 +234,10 @@ async function run() {
   await until(() => main.webContents.executeJavaScript('!!document.querySelector("dialog[open]")'), '确认后发送')
   await main.webContents.executeJavaScript('document.querySelector("dialog .primary").click(); document.querySelector("dialog .primary").click()')
   await until(() => peer.getState()?.phase === 'awaiting-consent', '对方只收到一次请求')
-  await until(() => main.webContents.executeJavaScript('document.querySelector(".screen-card")?.innerText.includes("等待对方同意")'), '等待状态进入聊天')
-  assert.equal((await screenRecords()).length, 1)
-  await assertCardAlignment()
+  await until(() => main.webContents.executeJavaScript('document.querySelector(".screen-card")?.innerText.includes("等待同意")'), '等待状态进入聊天')
+  const requestId = (await screenRecords())[0].id
+  await main.webContents.executeJavaScript('void (window.__requestCard = document.querySelector(".screen-card"))')
+  await assertCardAlignment(1)
   await shot(main, '01-request-card')
   autoAccept = acceptOnRequest
   const viewer = await until(() => BrowserWindow.getAllWindows().find(win => win.webContents.getURL().includes('#/remote-view')), '查看窗口')
@@ -247,6 +253,10 @@ async function run() {
     peer.respond(peer.getState().sessionId, true); peer.captureReady(peer.getState().sessionId)
   }
   await until(() => !viewer.isDestroyed() && viewer.webContents.executeJavaScript('!!document.querySelector(".picture canvas")'), '第一帧解码')
+  await until(() => main.webContents.executeJavaScript('document.querySelector(".screen-card")?.innerText.includes("协助中")'), '同一张卡片更新为协助中')
+  await assertCardAlignment(1)
+  assert.equal((await screenRecords())[0].id, requestId)
+  assert.equal(await main.webContents.executeJavaScript('window.__requestCard === document.querySelector(".screen-card")'), true, '开始共享保留原卡片节点')
   await shot(main, '01-chat')
   await shot(viewer, '02-viewer')
   assert.equal(await main.webContents.executeJavaScript('window.pantry.getScreenSources("bad")').then(value => value.length), 0)
@@ -295,14 +305,18 @@ async function run() {
   console.log(`[remote-view] 查看、四档切换、窗口权限、聊天共存通过；${Date.now() - at}ms / ${actualFps.toFixed(2)} fps`)
 
   const endedCard = (await screenRecords())[0]
+  assert.equal(endedCard.id, requestId, '结束沿用请求记录 ID')
   assert.equal(endedCard.screenRef.phase, 'ended')
   assert.ok(endedCard.screenRef.startedAt >= endedCard.screenRef.requestedAt)
   assert.ok(endedCard.screenRef.durationMs >= duration && endedCard.screenRef.endedAt > endedCard.screenRef.startedAt)
-  await until(() => main.webContents.executeJavaScript('document.querySelector(".screen-card")?.innerText.includes("持续时间")'), '结束卡片原位更新')
-  await assertCardAlignment()
+  await until(() => main.webContents.executeJavaScript('document.querySelector(".screen-card")?.innerText.includes("时长")'), '结束卡片原位更新')
+  await assertCardAlignment(1)
+  assert.equal(await main.webContents.executeJavaScript('window.__requestCard === document.querySelector(".screen-card")'), true, '结束保留原卡片节点')
+  console.log('[screen-card]', await main.webContents.executeJavaScript('JSON.stringify(document.querySelector(".screen-card").getBoundingClientRect().toJSON())'))
   await shot(main, '04-completed-card')
   await main.webContents.executeJavaScript("window.pantry.saveAppSettings({language:'en',theme:'dark'})")
   await until(() => main.webContents.executeJavaScript('document.querySelector(".screen-card")?.innerText.includes("Duration")'), '历史卡片切换英文')
+  await assertCardAlignment(1)
   await shot(main, '04-completed-dark')
   await main.webContents.executeJavaScript("window.pantry.saveAppSettings({language:'zh-CN',theme:'light'})")
   autoAccept = false
@@ -310,7 +324,7 @@ async function run() {
   assert.deepEqual(peer.request(appState.nodeId), { ok: true })
   const sharer = await until(() => BrowserWindow.getAllWindows().find(win => win.webContents.getURL().includes('#/remote-view')), '共享确认窗口')
   await until(() => sharer.webContents.executeJavaScript('document.body.innerText.includes("选择屏幕")'), '确认界面')
-  await assertCardAlignment()
+  await assertCardAlignment(2)
   await shot(sharer, '05-consent')
   await visibleActions(sharer, 'button')
   assert.equal(displayed, 0, '未同意不发送画面')
@@ -336,7 +350,7 @@ async function run() {
     return displayed >= 5
   }, '实际媒体流、Canvas 编码、IPC 和 TCP', 18000)
   assert.equal(sharer.isAlwaysOnTop(), true)
-  await assertCardAlignment()
+  await assertCardAlignment(2)
   assert.ok(lastSize.width <= 1600 && lastSize.height <= 1600)
   assert.deepEqual(sharer.getSize(), [320, 56], '同一窗口收为贴边条')
   const area = screen.getDisplayMatching(sharer.getBounds()).workArea
@@ -395,13 +409,13 @@ async function run() {
   assert.equal(declinedCard.screenRef.role, 'sharer')
   assert.equal(declinedCard.screenRef.startedAt, undefined)
   assert.equal(declinedCard.screenRef.durationMs, undefined, '拒绝请求不计协助时长')
-  await assertCardAlignment()
+  await assertCardAlignment(3)
   await shot(main, '09-history')
   main.webContents.reload()
   await until(() => main.webContents.executeJavaScript('!!document.querySelector(".conv")'), '历史重载')
   await main.webContents.executeJavaScript('document.querySelector(".conv").click()')
   await until(() => main.webContents.executeJavaScript('document.querySelectorAll(".screen-card").length === 3'), '恢复全部协助记录')
-  await assertCardAlignment()
+  await assertCardAlignment(3)
   assert.deepEqual(errors, [])
   discovery.stop(); await udp.stop(); await server.stop()
   source.destroy()
