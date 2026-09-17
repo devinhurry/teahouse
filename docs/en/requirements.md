@@ -4,7 +4,7 @@
 
 | Field | Value |
 |---|---|
-| Status | v0.58.0 implements remote desktop viewing (#310), Auto and manual 3/5/10 fps; target hardware acceptance pending; Neiwangtong compatibility remains paused by #199 |
+| Status | v0.59.0 adds request confirmation, history cards and an edge sharing strip (#312); Auto and manual 3/5/10 fps remain; target hardware acceptance pending; Neiwangtong compatibility remains paused by #199 |
 | Updated | 2026-09-16 |
 | Authority | The [Chinese requirements document](../requirements.md) is the canonical feature and decision record. This document translates the current effective requirements. |
 
@@ -142,14 +142,15 @@ Source: [Issue #13](https://github.com/skyjt/teahouse/issues/13). The user appro
 
 | Requirement | Scope |
 |---|---|
-| F-VIEW-1 | An online private-chat peer requests to view the recipient's desktop. The sharer explicitly consents and selects one screen on every session. Receipt alone never starts capture. Requests can be canceled, rejected, or expire; they never enter the offline queue. |
+| F-VIEW-1 | An online private-chat peer confirms the explanation and target before sending a viewing request. The sharer explicitly consents and selects one screen on every session. Receipt alone never starts capture. Requests can be canceled, rejected, or expire; they never enter the offline queue. |
 | F-VIEW-2 | Consent binds one session, viewer, and selected screen. Show both identities and a persistent sharer-side stop action. End invalidates permission; another session needs fresh consent, with no permanent trust or auto-accept. |
 | F-VIEW-3 | One-to-one, one-way, single-screen images only. Auto starts at 10 fps and adapts among 10/5/3 fps (#310), preserving text readability with moderate compression. Reduce achieved fps under load without queuing. The viewer can fit, display received pixels at 100%, and pan locally. Input never controls the remote machine; changing screens requires a new session. |
 | F-VIEW-4 | Stop, close, lock, suspend, quit, capture loss, or disconnection ends the session and releases capture. Network failure uses bounded deadlines. Unlock/recovery never reconnects automatically; clear the image on end. |
 | F-VIEW-5 | One pending or active session per node, regardless of role. Return an explicit busy result. Keep bounded current-frame state; never accumulate historical frames. Chat selection does not change the session, and chat/file transfer remain usable. |
-| F-VIEW-6 | Frames and grants stay in memory, outside messages, transfer records, SQLite, thumbnails, exports, and backups. Log only IDs, dimensions, sizes, timings, and reason enums. Never log pixels, screen titles, or tokens. Plaintext retains the existing LAN trust model and provides no protection against LAN interception or identity spoofing. |
+| F-VIEW-6 | Frames and grants stay in memory, outside messages, transfer records, SQLite, thumbnails, exports, and backups. #312 stores only local lifecycle metadata as system cards; normal chat exports/backups include these records. Log only IDs, dimensions, sizes, timings, and reason enums. Never log pixels, screen titles, or tokens. Plaintext retains the existing LAN trust model and provides no protection against LAN interception or identity spoofing. |
 | F-VIEW-7 | Advertise receiving and sharing separately. Hide the entry for legacy peers; explain unavailable roles/offline state on capable peers. Validate sustained capture on each target platform. Preserve #289's ARM64 Wayland capture guard; receiving is a separate validation candidate. |
 | F-VIEW-8 | Exclude remote input, audio/camera, recording/saving, clipboard sync, remote file drops, multiple viewers, unattended access, reconnect, public-network traversal, and interoperability with other remote-control products. Do not scaffold these features. |
+| F-VIEW-9 (#312) | One persistent private-chat card per legitimate request on each endpoint, updated in place for requests, refusals, cancellations, timeouts and completion. Keep request/start/end timestamps and monotonic connected duration; unknown interruption times remain blank. No duplicate cards, unread increments, forwarding or recall. |
 
 The approved implementation uses an independent window, Auto by default, and manual Economy/Standard/Smooth targets. Shared defaults are a 1600-pixel long edge and JPEG quality 0.60, with the same oversized-frame fallback for every mode. Actual office-text readability and platform performance need target-machine validation. See [UI behavior](ui-design.md#remote-view).
 
@@ -249,3 +250,7 @@ The user requested smoother viewing on the LAN and selected a **10 fps default t
 Keep the existing view-only consent flow and four modes. Fix clipped source-selection actions, compact the viewing toolbar and persistent sharing window, reduce redundant image work and capture rate, and make Linux lock detection asynchronous and recoverable. Preserve Electron 22, Node 16, Chrome 108, single-frame backpressure, and separate physical-platform acceptance.
 
 - 2026-09-17, #311: review compatibility, low-end performance and UI; application **0.58.0 → 0.58.1**.
+
+## Assistance interaction refinement (#312)
+
+Decision #312 (v0.59.0): confirm the explanation and target before sending a request. Each legitimate request creates one local system card in each private chat, updated in place through consent, rejection, cancellation, timeout and completion. Connected sessions show start/end times and monotonic duration, excluding invitation waiting. Unfinished records after abnormal exit show interruption with unknown end/duration. Cards carry no screen images, credentials or selected-source metadata; existing chat export/backup includes only these lifecycle records. No unread increments, forwarding or recall.

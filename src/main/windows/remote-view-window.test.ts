@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({ lock: null as null | ((value: boolean | null) 
 vi.mock('electron', async () => {
   const { EventEmitter } = await import('node:events')
   return { ipcMain: { handle: vi.fn() }, powerMonitor: Object.assign(new EventEmitter(), { getSystemIdleState: () => mocks.idle }),
-    screen: new EventEmitter() }
+    screen: Object.assign(new EventEmitter(), { getAllDisplays: vi.fn(), getDisplayMatching: vi.fn() }) }
 })
 vi.mock('../util/linux-screen-lock', () => ({ LinuxScreenLock: class {
   locked: boolean | null = null
@@ -74,4 +74,23 @@ it('原生未知状态禁用，锁屏/休眠期间拒绝新协助', () => {
   powerMonitor.emit('unlock-screen')
   powerMonitor.emit('suspend')
   expect(windows.availability().share).toBe(false)
+})
+
+
+it('共享条按所选显示器工作区贴边，支持负坐标和小工作区', () => {
+  const left = { id: 2, workArea: { x: -1280, y: 30, width: 1280, height: 690 } }
+  const right = { id: 1, workArea: { x: 0, y: 0, width: 1920, height: 1040 } }
+  vi.mocked(screen.getAllDisplays).mockReturnValue([right, left] as Electron.Display[])
+  vi.mocked(screen.getDisplayMatching).mockReturnValue(right as Electron.Display)
+  const host = windows as unknown as { source: { display_id: string } | null; dockSharing: (win: unknown) => void }
+  const win = { getBounds: () => ({ x: 0, y: 0, width: 560, height: 480 }), setBounds: vi.fn() }
+  host.source = { display_id: '2' }
+  host.dockSharing(win)
+  expect(win.setBounds).toHaveBeenLastCalledWith({ x: -320, y: 30, width: 320, height: 56 })
+  host.source = { display_id: '' }
+  host.dockSharing(win)
+  expect(win.setBounds).toHaveBeenLastCalledWith({ x: 1600, y: 0, width: 320, height: 56 })
+  right.workArea = { x: 50, y: -20, width: 300, height: 50 }
+  host.dockSharing(win)
+  expect(win.setBounds).toHaveBeenLastCalledWith({ x: 50, y: -20, width: 300, height: 50 })
 })

@@ -4,7 +4,7 @@
 
 | Field | Value |
 |---|---|
-| Current design | v1.82; v0.58.1 improves remote-view compatibility, performance and UI (#311); physical-platform acceptance pending |
+| Current design | v1.83; v0.59.0 adds local lifecycle records and request confirmation (#312); physical-platform acceptance pending |
 | Runtime baseline | Electron 22.3.27 / Node 16.17 / Chrome 108 |
 | Upstream | [Requirements](requirements.md), [Protocol](protocol.md), and [UI design](ui-design.md) |
 | Authority | [tech-design.md](../tech-design.md) is the canonical technical design record |
@@ -402,3 +402,11 @@ Persist validated `config.language` (zh-CN / en) through existing settings IPC. 
 - 2026-09-17, v1.82, #311: native bitmap ownership transfer and explicit release, bounded capture constraints, retained pre-connection minimized state, asynchronous and recoverable Linux lock detection including newer DDE. No wire change or dependency; application **0.58.1**.
 
 Local validation: **121 test files / 790 tests**, Electron-ABI database checks, type checks, build, startup smoke and version consistency passed. Actual Electron software-rendering tests cover native bitmap transfer and forced Canvas 2D fallback; 120-second viewing averaged **9.30 fps**. In one same-host 30-second comparison, viewer CPU was **2.053% → 0.757%** and working set **645 → 188 MiB**; these figures do not establish target-platform savings. Capture constraints at 10/5/3/10 fps, bounded high-resolution output, unsupported-constraint fallback and lock-triggered cleanup passed. Physical permissions, DPI and long-term memory still require Win7/UOS/Kylin/macOS target machines.
+
+## Assistance interaction refinement (#312)
+
+Decision #312 (v0.59.0): RemoteViewService emits history only at lifecycle transitions; ChatService reuses system messages and versioned file_ref.screen metadata with peer/session-scoped IDs. No new table, migration or wire fields. Metadata parsing is validated; corrupt records retain readable fallback text. A message-update event merges existing cards without duplicate notifications, unread increments or scrolling. Deleted conversations are not recreated by later updates. Startup changes unfinished cards to interrupted, leaving unknown end/duration blank. Wall-clock timestamps are local; duration uses a monotonic clock and starts at connection readiness. No per-frame/per-second storage, images, tokens or source IDs. Reuse the same renderer and capture stream for the compact sharing strip.
+
+Imported unfinished cards are also marked interrupted, without invented end times or duration. Metadata exports retain start/end and duration, while screen images and grants remain memory-only.
+
+Terminal cards cannot be rewound by late events. Capture-window cleanup precedes history persistence so slow storage cannot hold up Stop.

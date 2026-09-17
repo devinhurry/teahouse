@@ -30,6 +30,7 @@ export class RemoteViewService extends EventEmitter {
   private sender: ScreenSender | null = null
   private receiver: ScreenReceiver | null = null
   private minimized = false
+  private startedMono: number | null = null
   private timer: ReturnType<typeof setTimeout> | undefined
   private readonly terminal = new Map<string, number>()
   private readonly incomingRate = new Map<string, number>()
@@ -40,12 +41,13 @@ export class RemoteViewService extends EventEmitter {
   getState(): ScreenState | null { return this.state ? { ...this.state } : null }
   getAvailability(): ScreenAvailability { return this.deps.available() }
 
-  request(peerId: string): ScreenRequestResult {
+  request(peerId: string, focusOnly = false): ScreenRequestResult {
     const active = this.active()
     if (active) {
       if (active.peerId === peerId) { this.emit('focus'); return { ok: true } }
       return { ok: false, reason: 'busy' }
     }
+    if (focusOnly) return { ok: false, reason: 'unsupported' }
     const peer = this.deps.peer(peerId)
     if (!peer?.online) return { ok: false, reason: 'offline' }
     if (!this.deps.available().view || !peer.caps.includes(CAPS.remoteView) || !peer.caps.includes(CAPS.remoteShare)) return { ok: false, reason: 'unsupported' }
@@ -71,6 +73,9 @@ export class RemoteViewService extends EventEmitter {
       const reason = current ? 'busy' : !peer.online || !this.deps.available().share ? 'unsupported' : null
       if (reason) {
         this.remember(peerId, sessionId)
+        const at = Date.now()
+        this.emit('history', { revision: 0, sessionId, peerId, peerName: peer.name, peerIp: peer.ip,
+          role: 'sharer', phase: 'ended', mode: 'auto', targetFps: 10, requestedAt: at, endedAt: at, reason } satisfies ScreenState, true)
         void this.send(peerId, { op: 'reject', sessionId, reason })
         return
       }
@@ -116,7 +121,7 @@ export class RemoteViewService extends EventEmitter {
     if (!this.deps.available().share || !this.peerValid()) { this.failPreparation(sessionId, 'unsupported'); return false }
     // 准备仍用原邀请期限，系统权限等待不能无限续期。
     s.phase = 'preparing'
-    this.publish()
+    this.publish(true)
     return true
   }
 
@@ -178,22 +183,29 @@ export class RemoteViewService extends EventEmitter {
 
   private begin(peerId: string, peer: ScreenPeer, sessionId: string, role: ScreenState['role']): void {
     this.minimized = false
+    this.startedMono = null
     this.tcpPort = peer.tcpPort
     this.state = { revision: 0, sessionId, peerId, peerName: peer.name, peerIp: peer.ip, role,
-      phase: role === 'viewer' ? 'requesting' : 'awaiting-consent', mode: 'auto', targetFps: 10 }
-    this.phase(this.state.phase, SCREEN_REQUEST_TIMEOUT_MS)
+      phase: role === 'viewer' ? 'requesting' : 'awaiting-consent', mode: 'auto', targetFps: 10, requestedAt: Date.now() }
+    this.phase(this.state.phase, SCREEN_REQUEST_TIMEOUT_MS, true)
   }
-  private phase(phase: ScreenState['phase'], timeout?: number): void {
+  private phase(phase: ScreenState['phase'], timeout?: number, initial = false): void {
     clearTimeout(this.timer)
     this.state!.phase = phase
+    if (phase === 'active' && this.startedMono === null) {
+      this.startedMono = this.now()
+      this.state!.startedAt = Date.now()
+    }
     if (timeout) this.timer = setTimeout(() => this.stopAll('timeout'), timeout)
-    this.publish()
+    this.publish(true, initial)
   }
   private finish(reason: ScreenState['reason']): void {
     const s = this.active()
     if (!s) return
     s.phase = 'ended'
     s.reason = reason
+    s.endedAt = Date.now()
+    if (this.startedMono !== null) s.durationMs = Math.max(0, Math.round(this.now() - this.startedMono))
     clearTimeout(this.timer)
     this.token = null
     this.control?.abort()
@@ -203,7 +215,7 @@ export class RemoteViewService extends EventEmitter {
     this.sender = null
     this.receiver = null
     this.remember(s.peerId, s.sessionId)
-    this.publish()
+    this.publish(true)
   }
   private active(): ScreenState | null { return this.state?.phase !== 'ended' ? this.state : null }
   private matches(id: string): boolean { return this.active()?.sessionId === id }
@@ -212,7 +224,12 @@ export class RemoteViewService extends EventEmitter {
     const p = s ? this.deps.peer(s.peerId) : null
     return Boolean(s && p?.online && p.ip === s.peerIp && p.tcpPort === this.tcpPort)
   }
-  private publish(): void { this.state!.revision = ++this.revision; this.emit('state', this.getState()) }
+  private publish(history = false, initial = false): void {
+    this.state!.revision = ++this.revision
+    // 先销毁采集宿主/通知界面，持久化不能挡住停止共享。
+    this.emit('state', this.getState())
+    if (history) this.emit('history', this.getState(), initial)
+  }
   private send(id: string, payload: ScreenPayload, bestEffort = false): Promise<boolean> {
     let signal: AbortSignal | undefined
     if (payload.op === 'request' || payload.op === 'accept') {

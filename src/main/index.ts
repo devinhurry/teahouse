@@ -1272,10 +1272,12 @@ if (!gotLock) {
           return messenger!.sendReliable(id, env, signal)
         }
       })
+      const chatMessages = new MsgRepo(db)
+      chatMessages.interruptScreenRecords()
       chat = new ChatService({
         selfId: state.nodeId,
         convRepo: new ConvRepo(db),
-        msgRepo: new MsgRepo(db),
+        msgRepo: chatMessages,
         groupRepo,
         messenger,
         peerClock,
@@ -1308,6 +1310,11 @@ if (!gotLock) {
         updateTrayUnread(tray, mainWindow, total)
       }
       chat.on('message', onMessage)
+      chat.on('message-updated', (msg: MessageView) => mainWindow?.webContents.send(IpcEvents.msgUpdated, msg))
+      remoteView.service!.on('history', (state, initial) => {
+        try { chat?.recordScreen(state, initial) }
+        catch { console.error('[screen] 协助记录保存失败') }
+      })
       chat.on('status', onStatus)
       chat.on('nudge', onNudge)
       chat.on('convs', onConvs)

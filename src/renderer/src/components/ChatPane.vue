@@ -42,6 +42,7 @@ import GroupPanel from './GroupPanel.vue'
 import FileCabinetPanel from './FileCabinetPanel.vue'
 import GroupAvatar from './GroupAvatar.vue'
 import ForwardDialog from './ForwardDialog.vue'
+import ScreenRequestDialog from './ScreenRequestDialog.vue'
 import PantryIcon from './PantryIcon.vue'
 import Win7ChatEditor from './Win7ChatEditor.vue'
 import type {
@@ -77,6 +78,8 @@ const draft = ref('')
 const screenState = ref<ScreenState | null>(null)
 const screenAvailability = ref<ScreenAvailability | null>(null)
 const screenFeedback = ref('')
+const screenConfirmation = ref<{ nodeId: string; name: string; ip: string } | null>(null)
+const screenRequestBusy = ref(false)
 let stopScreenState: (() => void) | undefined
 function receiveScreenState(state: ScreenState | null): void {
   if (state && (!screenState.value || state.revision >= screenState.value.revision)) screenState.value = state
@@ -91,15 +94,24 @@ const screenDisabledReason = computed(() => {
   if (screenState.value && screenState.value.phase !== 'ended' && screenState.value.peerId !== peer.value?.nodeId) return tr('请先结束当前屏幕协助')
   return ''
 })
-async function requestScreen(): Promise<void> {
-  if (screenDisabledReason.value || !peer.value) return
-  const id = peer.value.nodeId
+function requestScreen(): void {
+  if (screenDisabledReason.value || !peer.value || screenRequestBusy.value) return
+  if (screenState.value?.phase !== 'ended' && screenState.value?.peerId === peer.value.nodeId) {
+    void sendScreenRequest(peer.value.nodeId, true)
+    return
+  }
+  screenConfirmation.value = { nodeId: peer.value.nodeId, name: peerName.value, ip: peer.value.ip }
+}
+async function sendScreenRequest(id: string, focusOnly = false): Promise<void> {
+  if (screenRequestBusy.value) return
+  screenRequestBusy.value = true
   screenFeedback.value = ''
   try {
-    const result = await window.pantry.requestScreen(id)
+    const result = await window.pantry.requestScreen(id, focusOnly)
     if (peer.value?.nodeId !== id) return
     if (!result.ok) screenFeedback.value = result.reason === 'rate-limited' ? tr('请求过于频繁，请稍后再试') : tr('暂时无法发起屏幕协助，请检查双方状态')
   } catch { if (peer.value?.nodeId === id) screenFeedback.value = tr('暂时无法发起屏幕协助，请检查双方状态') }
+  finally { screenRequestBusy.value = false; screenConfirmation.value = null }
 }
 const dragging = ref(false)
 
@@ -1624,6 +1636,8 @@ async function onDrop(event: DragEvent): Promise<void> {
     @dragleave="onDragLeave"
     @drop="onDrop"
   >
+    <ScreenRequestDialog v-if="screenConfirmation" :name="screenConfirmation.name" :ip="screenConfirmation.ip"
+      :busy="screenRequestBusy" @close="screenConfirmation = null" @confirm="sendScreenRequest(screenConfirmation.nodeId)" />
     <ForwardDialog v-if="forwardMsg" :msg="forwardMsg" @close="forwardMsg = null" />
     <div
       v-if="showHistorySearch"
@@ -1891,7 +1905,7 @@ async function onDrop(event: DragEvent): Promise<void> {
       </button>
     </header>
 
-    <p v-if="screenFeedback || (!isGroup && screenState?.peerId === peer?.nodeId)" class="screen-status" role="status">
+    <p v-if="screenFeedback || (!isGroup && screenState?.phase !== 'ended' && screenState?.peerId === peer?.nodeId)" class="screen-status" role="status">
       {{ screenFeedback || (screenState ? screenStatusText(screenState) : '') }}
     </p>
 

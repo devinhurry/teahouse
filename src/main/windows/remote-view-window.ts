@@ -48,6 +48,9 @@ export class RemoteViewWindows {
     screen.on('display-removed', (_event, display) => {
       if (this.source?.display_id === String(display.id)) this.service?.stopAll('capture-ended')
     })
+    screen.on('display-metrics-changed', () => {
+      if (this.source && this.win) this.dockSharing(this.win)
+    })
   }
 
   attach(deps: Omit<RemoteViewDeps, 'available' | 'sample' | 'display'>): RemoteViewService {
@@ -101,17 +104,20 @@ export class RemoteViewWindows {
     else if (!this.win) this.open(state)
     else if (state.role === 'sharer' && state.phase === 'preparing') {
       const win = this.win
-      const area = screen.getDisplayMatching(win.getBounds()).workArea
-      win.setMinimumSize(Math.min(360, area.width), Math.min(180, area.height))
-      win.setContentSize(Math.min(440, area.width), Math.min(180, area.height))
-      const bounds = win.getBounds()
-      win.setBounds({ width: Math.min(bounds.width, area.width), height: Math.min(bounds.height, area.height),
-        x: Math.max(area.x, Math.min(bounds.x, area.x + area.width - bounds.width)),
-        y: Math.max(area.y, Math.min(bounds.y, area.y + area.height - bounds.height)) })
+      win.setMinimumSize(1, 1)
+      this.dockSharing(win)
+      win.setResizable(false)
     }
     this.win?.webContents.send(IpcEvents.screenState, state)
     const main = this.main()
     if (main && !main.isDestroyed()) main.webContents.send(IpcEvents.screenState, state)
+  }
+
+  private dockSharing(win: BrowserWindow): void {
+    const area = (screen.getAllDisplays().find(display => String(display.id) === this.source?.display_id)
+      ?? screen.getDisplayMatching(win.getBounds())).workArea
+    const width = Math.min(320, area.width), height = Math.min(56, area.height)
+    win.setBounds({ width, height, x: area.x + area.width - width, y: area.y })
   }
 
   private open(state: ScreenState): void {
@@ -126,7 +132,7 @@ export class RemoteViewWindows {
     const win = new BrowserWindow({
       width, height, x: Math.round(area.x + (area.width - width) / 2), y: Math.round(area.y + (area.height - height) / 2),
       minWidth: Math.min(480, area.width), minHeight: Math.min(300, area.height),
-      show: false, title: tr('屏幕协助'), alwaysOnTop: sharer, minimizable: !sharer,
+      show: false, title: tr('屏幕协助'), frame: !sharer, alwaysOnTop: sharer, minimizable: !sharer, maximizable: !sharer,
       webPreferences: { preload: join(__dirname, '../preload/index.js'), contextIsolation: true,
         sandbox: true, nodeIntegration: false, backgroundThrottling: false, session: mediaSession }
     })
@@ -230,10 +236,10 @@ export class RemoteViewWindows {
       this.isWindow(event, 'main') || this.isWindow(event, 'remote') ? this.availability() : { view: false, share: false, reason: '' })
     ipcMain.handle(IpcChannels.screenState, event =>
       this.isWindow(event, 'main') || this.isWindow(event, 'remote') ? this.service?.getState() ?? null : null)
-    ipcMain.handle(IpcChannels.screenRequest, async (event, peer: unknown) => {
-      if (!this.isWindow(event, 'main') || typeof peer !== 'string' || !peer || peer.length > LIMITS.from) return { ok: false, reason: 'unsupported' }
+    ipcMain.handle(IpcChannels.screenRequest, async (event, peer: unknown, focusOnly: unknown = false) => {
+      if (!this.isWindow(event, 'main') || typeof peer !== 'string' || !peer || peer.length > LIMITS.from || typeof focusOnly !== 'boolean') return { ok: false, reason: 'unsupported' }
       await this.refreshLock()
-      return this.isWindow(event, 'main') ? this.service?.request(peer) ?? { ok: false, reason: 'unsupported' } : { ok: false, reason: 'unsupported' }
+      return this.isWindow(event, 'main') ? this.service?.request(peer, focusOnly) ?? { ok: false, reason: 'unsupported' } : { ok: false, reason: 'unsupported' }
     })
     ipcMain.handle(IpcChannels.screenSources, async (event, id: unknown): Promise<ScreenSource[]> => {
       if (!this.owns(event, id, 'sharer') || this.service?.getState()?.phase !== 'awaiting-consent' || this.enumerating) return []
@@ -259,8 +265,8 @@ export class RemoteViewWindows {
       await this.refreshLock()
       if (!this.owns(event, id, 'sharer') || !this.sources.has(sourceId)) return false
       const source = this.sources.get(sourceId)!
-      if (!this.service!.respond(id as string, true)) return false
       this.source = source
+      if (!this.service!.respond(id as string, true)) return false
       this.grant = source
       this.sources.clear()
       return true

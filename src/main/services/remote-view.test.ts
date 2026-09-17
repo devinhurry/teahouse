@@ -5,6 +5,7 @@ import { RemoteViewService, type RemoteViewDeps, type ScreenPeer } from './remot
 import { ScreenReceiver } from '../net/screen-stream'
 import { TransferServer } from '../net/transfer'
 import { encodeFrame } from '../net/frame'
+import type { ScreenState } from '../../shared/remote-view'
 import { CAPS, SCREEN_REQUEST_TIMEOUT_MS, type ScreenPayload } from '../../shared/protocol'
 
 const services: RemoteViewService[] = []
@@ -138,8 +139,9 @@ describe('屏幕会话授权与终止', () => {
     peer.ip = '127.0.0.2'; service.checkPeer()
     expect(service.getState()?.phase).toBe('ended')
   })
-  it('握手绑定真实 IP、nodeId、会话和一次性 token', async () => {
-    const { service, sent } = setup()
+  it('握手绑定真实 IP、nodeId、会话和一次性 token；时长排除等待且不随系统时钟漂移', async () => {
+    let now = 0
+    const { service, sent } = setup({}, () => now)
     const id = invite(service)
     service.respond(id, true); service.captureReady(id)
     const accepted = sent.find(value => value.op === 'accept')!
@@ -153,10 +155,16 @@ describe('屏幕会话授权与终止', () => {
     const port = ((server as unknown as { server: Server }).server.address() as AddressInfo).port
     const socket = createConnection({ host: '127.0.0.1', port }); sockets.push(socket)
     await new Promise<void>(resolve => socket.once('connect', resolve))
+    now = 30000
     socket.write(encodeFrame(open))
     await expect.poll(() => service.getState()?.phase).toBe('active')
     expect(service.open({ remoteAddress: '127.0.0.1' } as Socket, open)).toBeNull()
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(1000)
+    now = 34250
     service.stop(id)
+    clock.mockRestore()
+    expect(service.getState()?.durationMs).toBe(4250)
+    expect(service.getState()?.endedAt).toBe(1000)
     expect(service.getState()?.phase).toBe('ended')
     expect(service.open({ remoteAddress: '127.0.0.1' } as Socket, open)).toBeNull()
   })
@@ -177,4 +185,28 @@ it('邀请等待期间最小化在收到同意后仍保持低帧率', async () =
     service.setMinimized(false)
     expect(service.getState()?.targetFps).toBe(10)
   } finally { minimized.mockRestore() }
+})
+
+
+it('历史事件只跟生命周期变化；拒绝与忙碌保留，定位旧窗口不会绕过发送确认', () => {
+  const { service, sent } = setup()
+  const records: Array<{ state: ScreenState; initial: boolean }> = []
+  const order: string[] = []
+  service.on('state', () => order.push('state'))
+  service.on('history', (state, initial) => { order.push('history'); records.push({ state, initial }) })
+  expect(service.request('peer', true).ok).toBe(false)
+  expect(sent).toEqual([])
+  service.request('peer')
+  expect(records).toHaveLength(1)
+  expect(records[0].initial).toBe(true)
+  service.setMode(service.getState()!.sessionId, 'economy')
+  expect(records).toHaveLength(1)
+  invite(service)
+  expect(records[1]).toMatchObject({ initial: true, state: { role: 'sharer', phase: 'ended', reason: 'busy' } })
+  service.receive('peer', '127.0.0.1', { op: 'reject', sessionId: service.getState()!.sessionId, reason: 'declined' })
+  expect(records[2]).toMatchObject({ initial: false, state: { role: 'viewer', phase: 'ended', reason: 'declined' } })
+  expect(records[2].state.startedAt).toBeUndefined()
+  expect(records[2].state.durationMs).toBeUndefined()
+  expect(order.slice(-2)).toEqual(['state', 'history'])
+  expect(service.request('peer', true).ok).toBe(false)
 })

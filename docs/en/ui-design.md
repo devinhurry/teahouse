@@ -4,7 +4,7 @@
 
 | Field | Value |
 |---|---|
-| Current design | v1.94; v0.58.0 implements independent screen-assistance windows and Auto/manual modes (#310) |
+| Current design | v1.95; v0.59.0 adds an edge sharing strip, history cards and request confirmation (#312) |
 | Main-window model | Three columns with Chat, Contacts, and File Cabinet tabs |
 | Authority | [ui-design.md](../ui-design.md) is the canonical UI and interaction record |
 
@@ -194,7 +194,7 @@ Scope follows [requirements](requirements.md#remote-view). Use an independent no
 #### Invitation and consent
 
 - Add “View screen” to the private-chat header; omit it from groups. Hide it for legacy peers without `rv1`; disable with a specific reason for unavailable roles, offline peers, or busy sessions. Keep gray + “Offline” text rather than color alone.
-- Clicking shows waiting/cancel. Repeated clicks locate the current session, and changing chats never retargets it. Do not store screen sessions as messages or generate unread counts.
+- Clicking first opens the explanation and target confirmation; no request IPC, network traffic or card occurs before Send request. Repeated clicks on an existing session locate it without creating a new request. Each request is a local system card updated through its lifecycle, without unread increments. Changing chats never retargets the session.
 - The sharer sees the viewer's local contact display name and IP, an explanation of view-only access to the selected screen, and “Choose screen” / “Decline”. Receipt alone does not enumerate or capture.
 - Entering selection displays local screen thumbnails/names; the user selects a screen and explicitly starts sharing. Never silently accept the primary display. Show permission denial/cancel/failure; system dialogs remain inside the request deadline.
 - Open the always-on-top consent window with `showInactive`, including when main is hidden. Keep typing focus where it is; opening consent never starts capture. Duplicate/rate-limited invitations do not open another window.
@@ -204,7 +204,7 @@ Scope follows [requirements](requirements.md#remote-view). Use an independent no
 | Role | Presentation and behavior |
 |---|---|
 | Viewer | Independent resizable, non-modal window titled Screen assistance, with peer name and IP in the toolbar. Proportional image, fit, received-pixel 100%, local pan/scroll, and End. Fit initial bounds to the work area and permit maximize. No input forwarding, OCR, saving, or recording controls. |
-| Sharer | Compact always-visible, always-on-top status window showing the viewer, selected screen, and Stop sharing. Show connecting before active. Do not steal typing focus; do not allow minimizing away the stop entry. Close stops sharing, while chat remains usable. |
+| Sharer | A 320×56 DIP always-on-top strip at the selected screen work-area edge, showing sharing status, viewer and Stop; full peer/IP/source details are available as a tooltip. Show connecting before active. Do not steal typing focus; do not allow minimizing away the stop entry. Close stops sharing, while chat remains usable. |
 
 The local sharing indicator may appear in transmitted images; do not promise cross-platform window exclusion. Validate source-pointer capture and never present the viewer's pointer as the sharer's operation position.
 
@@ -221,7 +221,7 @@ Hiding main or selecting a different chat leaves a separate session running. Min
 | connecting | Consent received, connecting; show an empty waiting area |
 | active | Live image on viewer; named viewer and persistent stop on sharer |
 | No refreshed frame for 2 seconds | Explicit stale-image message above the image until a new frame; terminate at protocol deadline |
-| ended | Destroy the assistance window and image; show the localized reason in the corresponding private chat: decline, no answer, disconnected, locked, stopped, unsupported environment, or failure. A new request needs new consent. |
+| ended | Destroy the assistance window and image; retain the localized outcome and local request/start/end/duration in the corresponding chat card. A new request requires confirmation and new consent. |
 
 Keep tokens, sequence numbers, wire fields, and stack traces out of user flows. Announce meaningful state changes accessibly without announcing every frame. Use labeled native buttons, Tab/Enter/Space, native-window focus order for consent, and IME/consumed-event-aware Escape. Reuse visual tokens and reduced-motion behavior; locally validate Chinese/English and minimum sizes; validate high DPI on target machines.
 
@@ -317,8 +317,14 @@ General settings and onboarding expose “语言 / Language” with “简体中
 
 - 2026-09-16, decision #310: v0.58.0 implements view-only remote assistance, independent windows, Auto (10/5/3 fps) and manual Economy/Standard/Smooth modes. Consent, one-frame backpressure, bounded deadlines, lock detection and forced window cleanup are covered by local tests. Physical target-platform permission and performance checks remain pending; this iteration is not a release.
 
-## Assistance UI review (#311, v0.58.1)
+## Earlier assistance UI review (#311, superseded by #312 for sharing window size)
 
 Use the existing Teahouse tokens, native controls and window frame. Compact identity/rate/zoom controls leave more space for the image; narrow windows wrap controls without clipping Stop. Pending requests say Cancel. Source thumbnails scroll independently above a fixed Decline / Choose / Share action row, with visible keyboard focus and preparation feedback. The sharing window contracts to approximately 440×180 content pixels after consent, remains movable and always on top, and shows peer identity, IP, source and Stop. Long labels truncate with full tooltips. Place it on the main window display and keep resizing inside the current work area. Reuse IME-aware Escape handling including keyCode 229. No blur, continuous animation or new icon dependency.
 
 - 2026-09-17, v1.94, #311: compact assistance UI and fixed source actions; application **0.58.1**.
+
+## Assistance interaction refinement (#312)
+
+Decision #312 (v0.59.0) supersedes the 440×180 sharing status: use the same opaque, frameless sharing window as a 320×56 DIP strip at the selected display work-area top-right edge. Keep identity/status and Stop visible, allow dragging, disable resizing/maximizing/minimizing after consent, and re-anchor on display metrics changes. Consent retains source selection and fixed actions. Viewers keep native frames. The initiator first sees target name/IP, view-only and consent explanation, Cancel and Send request; focus starts on Cancel, Tab stays in the dialog, IME-aware Escape cancels, and no IPC/request/history occurs before confirmation. One restrained chat card per request shows its local lifecycle, request/start/end times and actual connected duration; refusal wording respects the local role. No blur or continuous animations.
+
+The confirmation uses the Chrome 108 native dialog focus scope. Global Escape handling recognizes open native dialogs; the dialog explicitly centers itself, and backdrop scrim tokens are defined on the pseudo-element because this Chromium baseline does not inherit root variables there.

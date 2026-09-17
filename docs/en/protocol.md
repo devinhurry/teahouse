@@ -280,7 +280,7 @@ This section is implemented with protocol types, strict codec/frame allowlists a
 
 #### 8.3.1 Channels and capabilities
 
-Add a `screen` envelope. `request/accept/reject` use existing reliable, non-queued messaging with ACK and TCP fallback. `end` is best effort and never delays local shutdown. No screen envelope enters chat storage or offline retry. Separate in-memory deduplication uses sender + message ID, capped at 256 entries for 120 seconds, without persistent dedup writes. Stopping aborts request/accept retries and TCP waits; cancellation does not mark the peer offline.
+Add a `screen` envelope. `request/accept/reject` use existing reliable, non-queued messaging with ACK and TCP fallback. `end` is best effort and never delays local shutdown. No screen envelope enters chat storage or offline retry. Under #312, local services separately persist lifecycle metadata cards without images or credentials. Separate in-memory deduplication uses sender + message ID, capped at 256 entries for 120 seconds, without persistent dedup writes. Stopping aborts request/accept retries and TCP waits; cancellation does not mark the peer offline.
 
 The viewer connects to the sharer's existing `profile.tcpPort` (default 17879). The shared listener routes by first frame; screen data uses a separate connection and bypasses file offers, file stream slots, queues, and disk. Do not add a listener. `rv1` means protocol support and receive/view availability; `rvs1` additionally means eligible local sharing, and requires `rv1`. Advertise after UDP/TCP readiness and a working lock-state detector; ARM64 Wayland advertises only receiving. Never trigger system capture consent at startup to discover a capability. User consent is still required for every session.
 
@@ -387,3 +387,7 @@ Measure 100ms between sampling starts. After consuming a frame, wait only the re
 - **2026-09-05, decision #292:** restored `need/info` catch-up when intermediate revisions are missing. Cumulative text changes may accompany a recognized structural operation only with a sufficient revision gap and independent authorization. Adjacent mixed operations, unauthorized text edits, and invalid structure changes remain rejected. No wire fields were added; protocol v0.51 and SQLite v16 remain unchanged. Repository version 0.54.1 → **0.54.2**.
 
 - 2026-09-16, decision #310: v0.58.0 implements view-only remote assistance, independent windows, Auto (10/5/3 fps) and manual Economy/Standard/Smooth modes. Consent, one-frame backpressure, bounded deadlines, lock detection and forced window cleanup are covered by local tests. Physical target-platform permission and performance checks remain pending; this iteration is not a release.
+
+## Assistance interaction refinement (#312)
+
+Decision #312 (2026-09-17, v0.59.0): screen control packets remain transient and are never queued or persisted. Local services separately retain lifecycle metadata as chat system cards, without credentials or images. No wire changes.

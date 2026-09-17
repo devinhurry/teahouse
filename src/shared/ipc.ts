@@ -137,6 +137,7 @@ export const IpcEvents = {
   peersUpdated: 'peers:updated',
   netState: 'net:state',
   msgNew: 'msg:new',
+  msgUpdated: 'msg:updated',
   msgStatus: 'msg:status',
   nudgeReceived: 'msg:nudge-received',
   convsUpdated: 'convs:updated',
@@ -282,7 +283,7 @@ export interface FileRefView {
 
 export type { PkRefView }
 
-export type MessagePreview = Pick<MessageView, 'kind' | 'text' | 'pkRef' | 'systemRef'> & {
+export type MessagePreview = Pick<MessageView, 'kind' | 'text' | 'pkRef' | 'systemRef' | 'screenRef'> & {
   fileRef?: Pick<FileRefView, 'name' | 'dir'>
 }
 
@@ -296,6 +297,7 @@ export interface MessageView {
   fileRef?: FileRefView
   pkRef?: PkRefView
   systemRef?: SystemMessage
+  screenRef?: import('./remote-view').ScreenRecord
   ts: number
   seq: number
   status: 'sending' | 'sent' | 'queued' | 'failed' | 'canceled' | 'recalled'
@@ -760,7 +762,7 @@ export interface CaptureFailureNotice {
 
 /** preload 经 contextBridge 暴露到 window.pantry 的 API 形状 */
 export interface PantryApi {
-  requestScreen(peerId: string): Promise<ScreenRequestResult>
+  requestScreen(peerId: string, focusOnly?: boolean): Promise<ScreenRequestResult>
   getScreenSources(sessionId: string): Promise<ScreenSource[]>
   respondScreen(sessionId: string, accepted: boolean, sourceId?: string): Promise<boolean>
   screenReady(sessionId: string): Promise<boolean>
@@ -966,6 +968,7 @@ export interface PantryApi {
   /** 订阅通讯录变化；返回退订函数 */
   onPeersUpdated(listener: (peers: PeerView[]) => void): () => void
   onMsgNew(listener: (msg: MessageView) => void): () => void
+  onMsgUpdated(listener: (msg: MessageView) => void): () => void
   onMsgStatus(listener: (event: MsgStatusEvent) => void): () => void
   onNudgeReceived(listener: (event: NudgeEvent) => void): () => void
   onConvsUpdated(listener: (convs: ConversationView[]) => void): () => void

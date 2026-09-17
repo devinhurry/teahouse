@@ -41,7 +41,7 @@ async function freePort(type) {
   })
 }
 async function run() {
-  const { app, BrowserWindow, desktopCapturer, session, systemPreferences, globalShortcut, powerMonitor } = require('electron')
+  const { app, BrowserWindow, desktopCapturer, session, systemPreferences, globalShortcut, powerMonitor, screen } = require('electron')
   if (process.env.PANTRY_SCREEN_SOFTWARE) app.disableHardwareAcceleration()
   const directory = process.argv[2], fixture = require(path.join(directory, 'fixture.cjs'))
   const data = path.join(directory, 'data')
@@ -168,7 +168,53 @@ async function run() {
   assert.equal(availability.view, true, JSON.stringify(availability))
   await main.webContents.executeJavaScript('document.querySelector(".conv").click()')
   await until(() => main.webContents.executeJavaScript('!!document.querySelector("button[aria-label=查看屏幕]")'), '私聊查看入口')
-  await main.webContents.executeJavaScript('document.querySelector("button[aria-label=查看屏幕]").click()')
+  const requestedPeer = () => main.webContents.executeJavaScript('document.querySelector("button[aria-label=查看屏幕]").focus(); document.querySelector("button[aria-label=查看屏幕]").click()')
+  const screenRecords = () => main.webContents.executeJavaScript(`window.pantry.pageMessages(${JSON.stringify('single:' + peerId)}, null, 50).then(rows => rows.filter(row => row.screenRef))`)
+  const acceptOnRequest = autoAccept
+  autoAccept = false
+  await requestedPeer()
+  await until(() => main.webContents.executeJavaScript('!!document.querySelector("dialog[open]")'), '发起说明与二次确认')
+  assert.equal(peer.getState(), null, '确认前不能给对方发请求')
+  assert.equal((await screenRecords()).length, 0, '确认前不生成卡片')
+  assert.equal(BrowserWindow.getAllWindows().some(win => win.webContents.getURL().includes('#/remote-view')), false)
+  assert.equal(await main.webContents.executeJavaScript('document.activeElement.textContent.trim()'), '取消', '默认焦点在取消')
+  assert.equal(await main.webContents.executeJavaScript(`(() => {
+    const dialog = document.querySelector('dialog'), rect = dialog.getBoundingClientRect();
+    return Math.abs(rect.x + rect.width / 2 - innerWidth / 2) < 2 && Math.abs(rect.y + rect.height / 2 - innerHeight / 2) < 2
+      && getComputedStyle(dialog, '::backdrop').backgroundColor !== 'rgba(0, 0, 0, 0)';
+  })()`), true, 'Chrome 108 确认框居中且遮罩可见')
+  main.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Tab' })
+  main.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Tab' })
+  await until(() => main.webContents.executeJavaScript('document.activeElement === document.querySelector("dialog .primary")'), 'Tab 到确认')
+  main.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Tab' })
+  main.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Tab' })
+  await until(() => main.webContents.executeJavaScript('document.activeElement === document.querySelector("dialog button")'), 'Tab 焦点留在确认框')
+  await shot(main, '00-confirm')
+  await main.webContents.executeJavaScript("window.pantry.saveAppSettings({language:'en',theme:'dark'})")
+  await until(() => main.webContents.executeJavaScript('document.querySelector("dialog .primary").textContent.trim() === "Send request"'), '英文确认框')
+  await visibleActions(main, 'dialog button')
+  await shot(main, '00-confirm-dark')
+  await main.webContents.executeJavaScript("window.pantry.saveAppSettings({language:'zh-CN',theme:'light'})")
+  await until(() => main.webContents.executeJavaScript('document.querySelector("dialog .primary").textContent.trim() === "发送请求"'), '确认框恢复中文')
+  await main.webContents.executeJavaScript('document.querySelector("dialog button").click()')
+  await until(() => main.webContents.executeJavaScript('!document.querySelector("dialog")'), '取消说明')
+  assert.equal(peer.getState(), null)
+  assert.equal(main.isVisible(), true, '取消仅关闭弹窗，主窗保持显示')
+  await requestedPeer()
+  await until(() => main.webContents.executeJavaScript('!!document.querySelector("dialog[open]")'), '重新确认')
+  main.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' })
+  main.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' })
+  await until(() => main.webContents.executeJavaScript('!document.querySelector("dialog")'), 'Esc 取消确认')
+  assert.equal(peer.getState(), null)
+  assert.equal(main.isVisible(), true, '取消仅关闭弹窗，主窗保持显示')
+  await requestedPeer()
+  await until(() => main.webContents.executeJavaScript('!!document.querySelector("dialog[open]")'), '确认后发送')
+  await main.webContents.executeJavaScript('document.querySelector("dialog .primary").click(); document.querySelector("dialog .primary").click()')
+  await until(() => peer.getState()?.phase === 'awaiting-consent', '对方只收到一次请求')
+  await until(() => main.webContents.executeJavaScript('document.querySelector(".screen-card")?.innerText.includes("等待对方同意")'), '等待状态进入聊天')
+  assert.equal((await screenRecords()).length, 1)
+  await shot(main, '01-request-card')
+  autoAccept = acceptOnRequest
   const viewer = await until(() => BrowserWindow.getAllWindows().find(win => win.webContents.getURL().includes('#/remote-view')), '查看窗口')
   if (process.env.PANTRY_SCREEN_BITMAP_FALLBACK) {
     await until(() => viewer.webContents.executeJavaScript('!!document.querySelector(".viewport")'), '回退验证窗口')
@@ -176,6 +222,9 @@ async function run() {
       const original = HTMLCanvasElement.prototype.getContext;
       HTMLCanvasElement.prototype.getContext = function(type, ...args) { return type === 'bitmaprenderer' ? null : original.call(this, type, ...args); };
     })()`)
+    peer.respond(peer.getState().sessionId, true); peer.captureReady(peer.getState().sessionId)
+  }
+  if (!process.env.PANTRY_SCREEN_BITMAP_FALLBACK) {
     peer.respond(peer.getState().sessionId, true); peer.captureReady(peer.getState().sessionId)
   }
   await until(() => !viewer.isDestroyed() && viewer.webContents.executeJavaScript('!!document.querySelector(".picture canvas")'), '第一帧解码')
@@ -226,7 +275,18 @@ async function run() {
   await until(() => peer.getState()?.phase === 'ended', '关窗停止')
   console.log(`[remote-view] 查看、四档切换、窗口权限、聊天共存通过；${Date.now() - at}ms / ${actualFps.toFixed(2)} fps`)
 
+  const endedCard = (await screenRecords())[0]
+  assert.equal(endedCard.screenRef.phase, 'ended')
+  assert.ok(endedCard.screenRef.startedAt >= endedCard.screenRef.requestedAt)
+  assert.ok(endedCard.screenRef.durationMs >= duration && endedCard.screenRef.endedAt > endedCard.screenRef.startedAt)
+  await until(() => main.webContents.executeJavaScript('document.querySelector(".screen-card")?.innerText.includes("持续时间")'), '结束卡片原位更新')
+  await shot(main, '04-completed-card')
+  await main.webContents.executeJavaScript("window.pantry.saveAppSettings({language:'en',theme:'dark'})")
+  await until(() => main.webContents.executeJavaScript('document.querySelector(".screen-card")?.innerText.includes("Duration")'), '历史卡片切换英文')
+  await shot(main, '04-completed-dark')
+  await main.webContents.executeJavaScript("window.pantry.saveAppSettings({language:'zh-CN',theme:'light'})")
   autoAccept = false
+  const inviteSentAt = Date.now()
   assert.deepEqual(peer.request(appState.nodeId), { ok: true })
   const sharer = await until(() => BrowserWindow.getAllWindows().find(win => win.webContents.getURL().includes('#/remote-view')), '共享确认窗口')
   await until(() => sharer.webContents.executeJavaScript('document.body.innerText.includes("选择屏幕")'), '确认界面')
@@ -256,7 +316,13 @@ async function run() {
   }, '实际媒体流、Canvas 编码、IPC 和 TCP', 18000)
   assert.equal(sharer.isAlwaysOnTop(), true)
   assert.ok(lastSize.width <= 1600 && lastSize.height <= 1600)
-  assert.ok(sharer.getContentSize()[1] <= 180, '共享状态收为紧凑小窗')
+  assert.deepEqual(sharer.getSize(), [320, 56], '同一窗口收为贴边条')
+  const area = screen.getDisplayMatching(sharer.getBounds()).workArea
+  assert.equal(sharer.getBounds().x + sharer.getBounds().width, area.x + area.width)
+  assert.equal(sharer.getBounds().y, area.y)
+  assert.equal(sharer.isResizable(), false)
+  screen.emit('display-metrics-changed', {}, screen.getDisplayMatching(sharer.getBounds()), ['workArea'])
+  assert.equal(sharer.getBounds().y, area.y)
   await visibleActions(sharer, 'button')
   await shot(sharer, '07-sharing')
   await main.webContents.executeJavaScript("window.pantry.saveAppSettings({language:'en',theme:'dark'})")
@@ -296,6 +362,18 @@ async function run() {
   const stopped = displayed; await pause(300); assert.equal(displayed, stopped)
   powerMonitor.emit('unlock-screen')
   assert.equal(peer.getState()?.phase, 'ended', '解锁不恢复会话')
+  await pause(Math.max(0, 20030 - (Date.now() - inviteSentAt)))
+  assert.deepEqual(peer.request(appState.nodeId), { ok: true })
+  const declined = await until(() => BrowserWindow.getAllWindows().find(win => win.webContents.getURL().includes('#/remote-view')), '拒绝测试邀请')
+  await until(() => declined.webContents.executeJavaScript('!!document.querySelector(".actions button")'), '拒绝按钮')
+  await declined.webContents.executeJavaScript('document.querySelector(".actions button").click()')
+  await until(() => peer.getState()?.reason === 'declined' && declined.isDestroyed(), '拒绝结束本次请求')
+  await until(() => main.webContents.executeJavaScript('[...document.querySelectorAll(".screen-card")].some(card => card.innerText.includes("你已拒绝"))'), '拒绝进入聊天记录')
+  const declinedCard = (await screenRecords()).find(row => row.screenRef.reason === 'declined')
+  assert.equal(declinedCard.screenRef.role, 'sharer')
+  assert.equal(declinedCard.screenRef.startedAt, undefined)
+  assert.equal(declinedCard.screenRef.durationMs, undefined, '拒绝请求不计协助时长')
+  await shot(main, '09-history')
   assert.deepEqual(errors, [])
   discovery.stop(); await udp.stop(); await server.stop()
   source.destroy()

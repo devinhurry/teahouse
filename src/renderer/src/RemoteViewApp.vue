@@ -37,6 +37,7 @@ let generation = 0
 let staleTimer: ReturnType<typeof setTimeout> | undefined
 let pan: { x: number; y: number; left: number; top: number } | null = null
 const sharer = computed(() => state.value?.role === 'sharer')
+const compact = computed(() => sharer.value && state.value?.phase !== 'awaiting-consent')
 const title = computed(() => sharer.value
   ? tr('{0} 正在查看你的屏幕', { 0: state.value?.peerName ?? '' })
   : tr('查看 {0} 的屏幕', { 0: state.value?.peerName ?? '' }))
@@ -235,10 +236,10 @@ window.addEventListener('beforeunload', cleanup, { once: true })
 </script>
 
 <template>
-  <main v-if="state" class="remote" :class="{ sharing: sharer }">
+  <main v-if="state" class="remote" :class="{ sharing: sharer, compact }">
     <header class="toolbar">
       <span class="screen-icon" aria-hidden="true"><PantryIcon name="screen" :size="20" /></span>
-      <div class="identity"><strong>{{ tr('屏幕协助') }}</strong><span :title="`${state.peerName} · ${state.peerIp}`">{{ state.peerName }} · {{ state.peerIp }}</span></div>
+      <div class="identity" :title="`${state.peerName} · ${state.peerIp}${sourceName ? ' · ' + sourceName : ''}`"><strong>{{ compact ? (state.phase === 'active' ? tr('正在共享屏幕') : tr('正在准备屏幕连接…')) : tr('屏幕协助') }}</strong><span>{{ state.peerName }}<template v-if="!compact"> · {{ state.peerIp }}</template></span></div>
       <button v-if="state.phase !== 'awaiting-consent'" class="stop" @click="stop">{{ state.phase === 'requesting' || state.phase === 'preparing' ? tr('取消') : sharer ? tr('停止共享') : tr('结束查看') }}</button>
     </header>
     <section v-if="sharer && state.phase === 'awaiting-consent'" class="consent" aria-live="polite">
@@ -260,11 +261,7 @@ window.addEventListener('beforeunload', cleanup, { once: true })
         <button v-else class="primary" :disabled="!selected || preparing" @click="share">{{ tr('开始共享') }}</button>
       </div>
     </section>
-    <section v-else-if="sharer" class="sharing-status" aria-live="polite">
-      <h1 :title="title"><span v-if="state.phase === 'active'" class="live-dot" aria-hidden="true"></span>{{ state.phase === 'active' ? title : tr('正在准备屏幕连接…') }}</h1>
-      <p class="source-name" :title="sourceName">{{ sourceName }}</p><p class="sharing-hint">{{ tr('你可以继续操作电脑，关闭此窗口即停止共享。') }}</p>
-    </section>
-    <template v-else>
+    <template v-else-if="!sharer">
       <div class="controls">
         <label>{{ tr('流畅度') }}
           <select :value="state.mode" @change="changeMode">
@@ -335,11 +332,12 @@ p { margin: 0; color: var(--text-2); line-height: 1.6; }
 .fit .picture :deep(canvas) { width: 100%; height: 100%; min-width: 0; min-height: 0; object-fit: contain; cursor: default; }
 .waiting { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; pointer-events: none; color: var(--text-2); }
 footer { flex-shrink: 0; padding: 6px 16px; color: var(--text-2); font-size: var(--font-xs); border-top: 1px solid var(--line); }
-.sharing-status { padding: 14px 16px; overflow: auto; }
-.sharing-status h1, .source-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sharing-status h1 { font-size: var(--font-md); }
-.source-name, .sharing-hint { font-size: var(--font-xs); }
-.sharing-hint { margin-top: 6px; }
-.live-dot { display: inline-block; width: 8px; height: 8px; margin-right: 8px; background: var(--primary); border-radius: var(--radius-pill); }
+.sharing { border: 1px solid var(--line); box-sizing: border-box; }
+.sharing .toolbar { -webkit-app-region: drag; }
+.sharing button { -webkit-app-region: no-drag; }
+.compact .toolbar { flex: 1; min-height: 0; padding: 6px 8px; gap: 8px; border: 0; }
+.compact .identity strong { font-size: var(--font-sm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.compact .screen-icon { width: 28px; height: 28px; }
+.compact .stop { font-size: var(--font-xs); }
 @media (max-width: 560px) { .target { flex: 1; } .zoom { margin-left: 0; } }
 </style>
