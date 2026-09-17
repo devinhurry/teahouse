@@ -1,3 +1,5 @@
+import { DiagnosticsService, diagnosticEnvironment } from './services/diagnostics'
+import { setupDiagnosticsUi } from './services/diagnostics-ui'
 import { isLanguage, setLanguage, tr } from '../i18n'
 import {
   app,
@@ -12,6 +14,7 @@ import {
   protocol,
   screen,
   shell,
+  systemPreferences,
   type Tray
 } from 'electron'
 import { networkInterfaces } from 'node:os'
@@ -222,6 +225,30 @@ const gotLock = app.requestSingleInstanceLock()
 if (!gotLock) {
   app.quit()
 } else {
+  const diagnostics = new DiagnosticsService(join(app.getPath('userData'), 'logs'))
+  void diagnostics.ready.then(() => diagnostics.record('app.start', { version: app.getVersion() }))
+  process.on('uncaughtExceptionMonitor', error => diagnostics.fatal(error))
+  app.on('web-contents-created', (_event, contents) => {
+    // Electron 22 隔离世界收不到页面的 error/rejection；从 Chromium 异常通知只提取类型和行号。
+    contents.on('console-message', (_event, level, message, line) => {
+      if (level < 2) return
+      const match = /^Uncaught (?:\(in promise\) )?(Error|TypeError|RangeError|ReferenceError|SyntaxError|URIError|EvalError)\b/.exec(message.slice(0, 100))
+      if (match) diagnostics.record('renderer.error', { kind: 'error', windowId: contents.id, line }, { name: match[1] })
+    })
+    contents.on('render-process-gone', (_event, details) => diagnostics.record('process.exit', {
+      process: 'renderer', reason: details.reason, exitCode: details.exitCode, windowId: contents.id
+    }))
+    contents.on('preload-error', (_event, _path, error) => diagnostics.record('renderer.error', { stage: 'prepare', windowId: contents.id }, error))
+    contents.on('unresponsive', () => diagnostics.record('window.health', { status: 'unresponsive', windowId: contents.id }))
+    contents.on('responsive', () => diagnostics.record('window.health', { status: 'responsive', windowId: contents.id }))
+    contents.on('did-fail-load', (_event, code) => diagnostics.record('window.health', { stage: 'load', status: 'failed', exitCode: code, windowId: contents.id }))
+  })
+  app.on('child-process-gone', (_event, details) => diagnostics.record('process.exit', {
+    process: details.type.toLowerCase(), reason: details.reason, exitCode: details.exitCode
+  }))
+  let databaseMode = 'unavailable'
+  let tcpStatus = 'starting'
+  let captureStatus = 'unknown'
   let mainWindow: BrowserWindow | null = null
 
   // ---- 网络栈（环境变量仅供本机联调覆盖；正式端口从设置读取，重启生效） ----
@@ -285,6 +312,9 @@ if (!gotLock) {
     appState.profile.caps = caps
     appState.profile.profileRev += 1
     discovery?.announceProfile()
+  }, async () => {
+    diagnostics.record('capture.state', { kind: 'screen', status: 'starting' })
+    await diagnostics.flush()
   })
   let tray: Tray | null = null
   let isQuitting = false
@@ -1233,11 +1263,17 @@ if (!gotLock) {
     // 存储层降级链：文件库 → 内存库（功能照常、不持久）→ 全不可用则只剩发现功能
     try {
       db = openDatabase(join(app.getPath('userData'), 'data', 'db', 'chat.db'))
+      databaseMode = 'file'
+      diagnostics.record('store.open', { status: 'ready', kind: 'file' })
     } catch (err) {
+      diagnostics.record('store.open', { status: 'failed', kind: 'file' }, err)
       console.error('[store] 文件库打开失败，尝试内存库：', err)
       try {
         db = openMemoryDatabase()
+        databaseMode = 'memory'
+        diagnostics.record('store.open', { status: 'ready', kind: 'memory' })
       } catch (err2) {
+        diagnostics.record('store.open', { status: 'failed', kind: 'memory' }, err2)
         console.error('[store] 内存库也不可用，本次会话仅发现功能：', err2)
       }
     }
@@ -1294,10 +1330,12 @@ if (!gotLock) {
         }
       })
       const onMessage = (msg: MessageView): void => {
+        diagnostics.record('message.state', { id: msg.id, status: msg.status, kind: msg.kind })
         mainWindow?.webContents.send(IpcEvents.msgNew, msg)
         notifyIncoming(msg)
       }
-      const onStatus = (ev: unknown): void => {
+      const onStatus = (ev: { id: string; status: string }): void => {
+        diagnostics.record('message.state', { id: ev.id, status: ev.status })
         mainWindow?.webContents.send(IpcEvents.msgStatus, ev)
       }
       const onNudge = (ev: NudgeEvent): void => {
@@ -1312,6 +1350,8 @@ if (!gotLock) {
       chat.on('message', onMessage)
       chat.on('message-updated', (msg: MessageView) => mainWindow?.webContents.send(IpcEvents.msgUpdated, msg))
       remoteView.service!.on('history', (state, initial) => {
+        diagnostics.record('screen.state', { sessionId: state.sessionId, peerId: state.peerId, host: state.peerIp,
+          role: state.role, stage: state.phase, mode: state.mode, fps: state.targetFps, reason: state.reason, durationMs: state.durationMs })
         try { chat?.recordScreen(state, initial) }
         catch { console.error('[screen] 协助记录保存失败') }
       })
@@ -1321,6 +1361,7 @@ if (!gotLock) {
       onConvs(chat.listConversations())
 
       files = new FilesService({
+        diagnostic: diagnostics.record,
         openScreen: (socket, frame) => remoteView.service?.open(socket, frame) ?? null,
         selfId: state.nodeId,
         messenger,
@@ -1355,7 +1396,11 @@ if (!gotLock) {
       try {
         await files.start() // TCP 数据端口
         tcpReady = true
+        tcpStatus = 'ready'
+        diagnostics.record('network.listen', { kind: 'tcp', port: tcpPort, status: 'ready' })
       } catch (err) {
+        tcpStatus = 'failed'
+        diagnostics.record('network.listen', { kind: 'tcp', port: tcpPort, status: 'failed' }, err)
         console.error('[files] TCP 端口监听失败，文件发送可用但无法被拉取：', err)
       }
 
@@ -1414,6 +1459,9 @@ if (!gotLock) {
       chat.prune() // 启动清理（过期队列/去重窗口），之后每小时一次
       pruneTimer = setInterval(() => chat?.prune(), 3_600_000)
       pruneTimer.unref?.()
+    } else {
+      tcpStatus = 'unavailable'
+      diagnostics.record('network.listen', { kind: 'tcp', port: tcpPort, status: 'unavailable' })
     }
 
     // 注册表变化 → 节流 200ms 推给渲染层（tech-design §4 事件推送约定）
@@ -1443,9 +1491,11 @@ if (!gotLock) {
       rangeSync?.start()
       scheduleExistingRemoteRangeScans()
       netState.ok = true
+      diagnostics.record('network.listen', { kind: 'udp', port: udpPort, status: 'ready' })
     } catch (err) {
       // 端口被占等启动失败：进"离线模式"，窗口照常可用（tech-design §2）
       netState.ok = false
+      diagnostics.record('network.listen', { kind: 'udp', port: udpPort, status: 'failed' }, err)
       netState.error = err instanceof Error ? err.message : String(err)
       console.error('[net] UDP 启动失败，进入离线模式：', netState.error)
     }
@@ -1458,6 +1508,8 @@ if (!gotLock) {
     error?: unknown
   ): void {
     capturing = false
+    captureStatus = reason
+    diagnostics.record('capture.state', { status: 'failed', reason }, error)
     const notice = captureFailureNotice(reason, WAYLAND_SESSION)
     console.warn('[capture]', notice.message, error ?? '')
 
@@ -1495,6 +1547,9 @@ if (!gotLock) {
   async function startCapture(): Promise<void> {
     if (capturing) return
     capturing = true
+    captureStatus = 'starting'
+    diagnostics.record('capture.state', { status: 'starting' })
+    await diagnostics.flush()
     const hide = appState?.config.hideOnCapture !== false
     const captureMainWindow = mainWindow
     const wasVisible = captureMainWindow?.isVisible() ?? false
@@ -1525,6 +1580,8 @@ if (!gotLock) {
         reportCaptureFailure('screen-unavailable', wasVisible)
         return
       }
+      captureStatus = 'ready'
+      diagnostics.record('capture.state', { status: 'ready' })
       const sourceSize = source.thumbnail.getSize()
       const geometry = planCaptureGeometry(
         process.platform,
@@ -1679,6 +1736,29 @@ if (!gotLock) {
   }
 
   // ---- IPC（只做参数校验与转发，业务禁入此层 —— tech-design §3） ----
+  setupDiagnosticsUi(diagnostics, async includePeers => {
+    const environment = await diagnosticEnvironment(diagnostics)
+    let permission = 'unknown'
+    if (process.platform === 'darwin') {
+      try { permission = systemPreferences.getMediaAccessStatus('screen') } catch { /* 旧系统仅标未知 */ }
+    }
+    return { ...environment, generatedAt: new Date().toISOString(), utcOffsetMinutes: -new Date().getTimezoneOffset(), app: { version: app.getVersion(), electron: process.versions.electron,
+      node: process.versions.node, chrome: process.versions.chrome, windows7: WINDOWS7,
+      softwareRendering: SOFTWARE_RENDERING },
+      desktop: { names: environment.desktop ?? [], session: WAYLAND_SESSION ? 'wayland' : environment.session ?? 'native',
+        screenPermission: permission, captureStatus, screenViewing: remoteView.availability().view,
+        screenSharing: remoteView.availability().share, displays: screen.getAllDisplays().map(d => ({
+          width: d.size.width, height: d.size.height, scale: d.scaleFactor
+        })) },
+      network: { udp: { port: udpPort, status: netState.ok ? 'ready' : netState.error ? 'failed' : 'starting' },
+        tcp: { port: tcpPort, status: tcpStatus }, localAddress: diagnostics.alias(currentLocalIpv4()),
+        knownPeers: registry?.values().length ?? 0,
+        peers: includePeers ? (registry?.values() ?? []).slice(0, 1000).map(p => ({ peer: diagnostics.alias(p.profile.nodeId),
+          address: diagnostics.alias(p.ip), tcpPort: p.profile.tcpPort, online: p.online,
+          version: /^\d{1,5}\.\d{1,5}\.\d{1,5}$/.test(p.profile.ver) ? p.profile.ver : 'unknown', platform: p.profile.platform })) : undefined },
+      database: databaseMode, diagnostics: diagnostics.status() }
+  })
+
   ipcMain.handle(IpcChannels.appInfo, (): AppInfo => {
     return {
       version: app.getVersion(),
@@ -3204,7 +3284,13 @@ if (!gotLock) {
 
   app.on('will-quit', () => globalShortcut.unregisterAll())
 
-  app.on('before-quit', () => {
+  let diagnosticQuit = false
+  let diagnosticClosing = false
+  app.on('before-quit', event => {
+    if (diagnosticQuit) return
+    event.preventDefault()
+    if (diagnosticClosing) return
+    diagnosticClosing = true
     remoteView.close()
     isQuitting = true
     stopTrayUnreadFlash(tray)
@@ -3235,6 +3321,9 @@ if (!gotLock) {
       console.error('[store] 退出落库失败：', err)
     }
     db = null
+    let timer: ReturnType<typeof setTimeout>
+    void Promise.race([diagnostics.close(), new Promise<void>(resolve => { timer = setTimeout(resolve, 2000) })])
+      .finally(() => { clearTimeout(timer); diagnosticQuit = true; app.quit() })
   })
 
   // 所有窗口都关闭时退出；主窗关闭到托盘由 createMainWindow 的 close 事件拦截。

@@ -4,7 +4,7 @@
 
 | Field | Value |
 |---|---|
-| Status | v0.59.2 uses one compact card per assistance session (#314); Auto and manual 3/5/10 fps remain; target hardware acceptance pending; Neiwangtong compatibility remains paused by #199 |
+| Status | v0.60.0 local diagnostics implemented (#315); physical remote-view platform acceptance remains pending |
 | Updated | 2026-09-17 |
 | Authority | The [Chinese requirements document](../requirements.md) is the canonical feature and decision record. This document translates the current effective requirements. |
 
@@ -258,3 +258,9 @@ Decision #312 (v0.59.0): confirm the explanation and target before sending a req
 - 2026-09-17, v2.90, decision #313, application **0.59.1**: align assistance cards like ordinary messages using the persisted initiator (`isMine`): self on the right, peer on the left. Preserve direction through rejection, cancellation, completion and history reload. Reuse existing row layout and spacing; no wire/storage changes. Ordinary system notices remain centered.
 
 - 2026-09-17, v2.91, #314, application **0.59.2**: keep one card on the initiator's side for each session, updating it through request, start and end without appending lifecycle messages. Only a new request creates another card. Show a compact name/status and time/duration summary; keep full timing and reasons in native hover and accessible descriptions. Remove redundant direction text, timing table and normal-session banner, preserving request-failure feedback. No ticking timers, protocol or storage changes.
+
+## Decision #315 — local diagnostics
+
+Version 0.60.0 adds Settings → About → Diagnostics and feedback. Export a local ZIP, copy a redacted environment summary and reveal the saved file. No uploads. Explicit lifecycle/error metadata only; never chat/file/image/clipboard content, credentials or raw error messages. Keep up to seven days and 10 MiB, with bounded asynchronous buffers and repetition suppression. Default node/address aliases; optionally include addresses observed during this run. Preserve evidence of an unclean previous exit. Include a bug-report template and log locations. Native crashes may provide no stack; no memory dumps, continuous monitoring or automatic repair.
+
+- 2026-09-17: Decision #315, application **0.60.0**; diagnostics design recorded before implementation.

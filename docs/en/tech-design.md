@@ -4,7 +4,7 @@
 
 | Field | Value |
 |---|---|
-| Current design | v1.83; v0.59.0 adds local lifecycle records and request confirmation (#312); physical-platform acceptance pending |
+| Current design | v1.84; v0.60.0 local diagnostics and feedback (#315) |
 | Runtime baseline | Electron 22.3.27 / Node 16.17 / Chrome 108 |
 | Upstream | [Requirements](requirements.md), [Protocol](protocol.md), and [UI design](ui-design.md) |
 | Authority | [tech-design.md](../tech-design.md) is the canonical technical design record |
@@ -410,3 +410,11 @@ Decision #312 (v0.59.0): RemoteViewService emits history only at lifecycle trans
 Imported unfinished cards are also marked interrupted, without invented end times or duration. Metadata exports retain start/end and duration, while screen images and grants remain memory-only.
 
 Terminal cards cannot be rewound by late events. Capture-window cleanup precedes history persistence so slow storage cannot hold up Stop.
+
+## Local diagnostic implementation (#315)
+
+DiagnosticsService accepts explicit allowlisted event metadata, never arbitrary console/business objects or Error.message. Chromium uncaught-error notifications supply only a known error type and line number; Electron 22 isolated-world DOM listeners cannot observe page errors. Shutdown waits up to two seconds for pending writes and an active export. Persist salted node/address aliases and correlation UUIDs. Read at most 65 bytes of salt synchronously at startup so early events use the same aliases as later snapshots. Daily JSONL is limited to seven days/10 MiB, 1 MiB fragments, a 256 KiB async queue and 2 KiB records; repeated events are counted. A run marker records possible previous abnormal exits. Disk failures keep bounded in-memory evidence and must not break business operations. Capture start is flushed before native enumeration. Collect environment from the app itself without prompting permissions, network scans or external requests. Transfer phase/error codes and lifecycle summaries avoid per-frame/packet/progress writes. Thin IPC delegates to the service; Node Worker reuses zip-store with bounded regular-file reads, symlink rejection, a same-directory temporary ZIP, atomic replacement, timeout and single export at a time. Bundles contain summary.txt, environment.json and logs/*.jsonl; optional real-address mapping covers the current run only. Reveal uses only the last successful path. Node 16.17/Electron 22, no new dependencies, migrations or wire changes. Validate redaction, budgets, abnormal exit, disk errors, loopback errors and real Electron UI/IPC/Worker; physical target-platform acceptance remains pending.
+
+- 2026-09-17: Decision #315, application **0.60.0**; diagnostics design recorded before implementation.
+
+Validation: 123 files / 801 tests, Electron ABI database checks, typecheck, build and isolated smoke all passed. `npm run test:diagnostics` exercises real Electron 22 IPC/Worker, redacted bundles, disk errors, abnormal restart and light/dark/English 125% UI. A local ~9 MiB fixture exported in 221 ms with a 17 ms maximum main-thread heartbeat interval; this is a local sample only. The synthetic-screen regression also passed. Win7/UOS/Kylin hardware acceptance remains pending. No new dependencies, migrations or wire changes.

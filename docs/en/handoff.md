@@ -4,7 +4,7 @@
 
 This is the English current-state handoff for developers and coding agents. Read it together with the [Contributing guide](../../CONTRIBUTING.en.md) and any local automation policy included in your development checkout. The Chinese handoff keeps the complete chronological release notes; `git log` remains authoritative for current implementation history.
 
-Last updated: 2026-09-17. **v0.59.2 uses one compact card per assistance session (#314); hardware permission/performance acceptance remains pending.** The application remains pinned to Electron 22.3.27, Node 16.17 main/preload, Chrome 108 renderer, and LAN-only runtime behavior. The next new decision number is #315.
+Last updated: 2026-09-17. **v0.60.0 adds local diagnostic bundles and feedback (#315); hardware permission/performance acceptance remains pending.** The application remains pinned to Electron 22.3.27, Node 16.17 main/preload, Chrome 108 renderer, and LAN-only runtime behavior. The next new decision number is #316.
 
 Image Viewer now offers Previous/Next canvas buttons across the full local history of the opened conversation, skipping unavailable images and disabling endpoints. Switching keeps window bounds and resets image/OCR state. Wire protocol, database schema, and dependencies are unchanged.
 
@@ -97,7 +97,7 @@ Layer rules:
 
 **Remote desktop viewing (#310, v0.58.0 implemented, not released):** private-chat View screen → peer consents/selects one screen → independent viewer. Default Auto 10/5/3 fps, manual 3/5/10 fps, per-session mode. JPEG uses the existing plaintext TCP listener, one frame on demand, without new dependencies or servers.
 
-- Read [requirements](requirements.md#remote-view), [protocol](protocol.md#remote-view), [technical design](tech-design.md#remote-view) and [UI behavior](ui-design.md#remote-view). The next decision is #315.
+- Read [requirements](requirements.md#remote-view), [protocol](protocol.md#remote-view), [technical design](tech-design.md#remote-view) and [UI behavior](ui-design.md#remote-view). The next decision is #316.
 - Entry points: `services/remote-view.ts`, `net/screen-stream.ts`, `windows/remote-view-window.ts`, `util/linux-screen-lock.ts` and the fifth dynamic root `RemoteViewApp.vue`.
 - Run all five checks and, after build, `npm run test:screen`. Use `PANTRY_SCREEN_TEST_MS=600000 npm run test:screen` for ten minutes. The real Electron test uses synthetic office content and exercises actual media/Canvas/IPC/TCP/display without capturing the user's desktop.
 - Local results (2026-09-16): 120 files / 776 tests and all five checks passed. Synthetic Electron viewing ran for ten minutes at about 9.45 fps; reverse media/encoding/transport and lock cleanup passed, as did small-window, bilingual/theme and stale-frame recovery checks.
@@ -168,3 +168,9 @@ Local validation for #312: 121 files / 795 tests; database self-test on Node 16.
 - 2026-09-17, #313, **v0.59.1**: assistance cards reuse ordinary message rows and persisted `isMine` for right/left initiator alignment, preserved through updates and history reload. No new timers, dependencies, protocol or storage changes. All five checks passed (121 files / 795 tests); real Electron 22 with software rendering verified request, completion, incoming, refusal and reload geometry, with bilingual/theme screenshots inspected. Not released.
 
 - 2026-09-17, #314, **v0.59.2**: compact two-line assistance cards measured 260×63.5px locally, using mine/peer bubble colors. Full times/reasons remain in native hover and accessible text; remove the duplicate normal-session banner and timing table. Reuse existing in-place session updates. Real Electron assertions confirm unchanged record ID, DOM node and card count through request/start/end; refusal, reload, themes and languages passed. All five checks passed (122 files / 796 tests); main-window JS/CSS decreased by 444/86 bytes with no added per-frame or per-second work. Not released.
+
+## 2026-09-17 — v0.60.0 diagnostics (#315)
+
+Implemented: DiagnosticsService owns bounded logs and redaction; diagnostics-ui and its Worker export a local ZIP; DiagnosticsPanel lives in Settings → About. No database or wire changes. Next decision #316. Target-platform hardware/permission acceptance remains pending.
+
+Validation: 123 files / 801 tests, Electron ABI database checks, typecheck, build and isolated smoke all passed. `npm run test:diagnostics` exercises real Electron 22 IPC/Worker, redacted bundles, disk errors, abnormal restart and light/dark/English 125% UI. A local ~9 MiB fixture exported in 221 ms with a 17 ms maximum main-thread heartbeat interval; this is a local sample only. The synthetic-screen regression also passed. Win7/UOS/Kylin hardware acceptance remains pending. No new dependencies, migrations or wire changes.

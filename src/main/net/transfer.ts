@@ -125,7 +125,7 @@ export class TransferServer extends EventEmitter {
       server.once('error', reject)
       server.listen(this.port, this.bindAddress, () => {
         server.removeListener('error', reject)
-        server.on('error', () => undefined) // 运行期错误不致命
+        server.on('error', error => this.emit('diagnostic-error', error)) // 运行期错误不致命
         this.server = server
         resolve()
       })
@@ -427,7 +427,11 @@ export interface IncomingFilePlan {
   isDir?: boolean
 }
 
+export type PullStage = 'connect' | 'connected' | 'prepare' | 'pull' | 'receive' | 'verify' | 'write' | 'complete'
+
 export interface PullOptions {
+  /** 关键阶段元数据；不含文件名、路径或进度。 */
+  onPhase?: (stage: PullStage, localAddress?: string, localPort?: number) => void
   host: string
   port: number
   selfId: string
@@ -452,6 +456,12 @@ export function pullTransfer(opts: PullOptions): Promise<void> {
     const socket = createConnection({ host: opts.host, port: opts.port })
     opts.cancelRef.socket = socket
     socket.setNoDelay(true)
+    let stage: PullStage = 'connect'
+    const phase = (value: PullStage): void => {
+      stage = value
+      opts.onPhase?.(value, socket.localAddress, socket.localPort)
+    }
+    phase('connect')
     // 空闲超时（决议 #211）：建连与排队阶段同样计时；发送端 wait 保活会刷新计时器
     socket.setTimeout(positiveLimit(opts.idleTimeoutMs, PULL_IDLE_TIMEOUT))
     socket.on('timeout', () => fail('timeout'))
@@ -483,7 +493,7 @@ export function pullTransfer(opts: PullOptions): Promise<void> {
       if (!settled && !socket.destroyed) socket.resume()
     }
 
-    const fail = (reason: string): void => {
+    const fail = (reason: string, error?: unknown): void => {
       if (settled) return
       settled = true
       resumeSocket()
@@ -500,7 +510,7 @@ export function pullTransfer(opts: PullOptions): Promise<void> {
         }
       }
       socket.destroy()
-      reject(new Error(reason))
+      reject(Object.assign(new Error(reason), { stage, code: (error as { code?: unknown } | undefined)?.code }))
     }
 
     const succeed = (): void => {
@@ -508,6 +518,7 @@ export function pullTransfer(opts: PullOptions): Promise<void> {
       settled = true
       resumeSocket()
       socket.end()
+      phase('complete')
       resolvePromise()
     }
 
@@ -522,6 +533,7 @@ export function pullTransfer(opts: PullOptions): Promise<void> {
         succeed()
         return
       }
+      phase('prepare')
       const finalPath = join(root, ...plan.relPath.split('/'))
       if (!pathResolve(finalPath).startsWith(root + sep)) {
         fail('path-escape') // sanitize 之外的最后一道闸
@@ -530,8 +542,8 @@ export function pullTransfer(opts: PullOptions): Promise<void> {
       if (plan.isDir) {
         try {
           mkdirSync(finalPath, { recursive: true })
-        } catch {
-          fail('write-error')
+        } catch (error) {
+          fail('write-error', error)
           return
         }
         next()
@@ -539,8 +551,8 @@ export function pullTransfer(opts: PullOptions): Promise<void> {
       }
       try {
         mkdirSync(dirname(finalPath), { recursive: true })
-      } catch {
-        fail('write-error')
+      } catch (error) {
+        fail('write-error', error)
         return
       }
       const partPath = `${finalPath}.part`
@@ -553,6 +565,7 @@ export function pullTransfer(opts: PullOptions): Promise<void> {
       if (offset > 0) opts.onProgress(offset)
       const hash = createHash('sha256')
       const startPull = (): void => {
+        phase('pull')
         current = {
           plan,
           partPath,
@@ -562,7 +575,7 @@ export function pullTransfer(opts: PullOptions): Promise<void> {
           left: plan.size - offset,
           started: false
         }
-        current.stream.on('error', () => fail('write-error'))
+        current.stream.on('error', error => fail('write-error', error))
         socket.write(
           encodeFrame({
             type: 'pull',
@@ -579,9 +592,9 @@ export function pullTransfer(opts: PullOptions): Promise<void> {
       }
       const existing = createReadStream(partPath, { start: 0, end: offset - 1 })
       existing.on('data', (chunk) => hash.update(chunk))
-      existing.on('error', () => {
+      existing.on('error', error => {
         removePart(partPath)
-        fail('part-read-error')
+        fail('part-read-error', error)
       })
       existing.on('end', startPull)
     }
@@ -598,6 +611,7 @@ export function pullTransfer(opts: PullOptions): Promise<void> {
           return
         }
         if (frame.type === 'pull-ok' && current) {
+          phase('receive')
           current.started = true
           opts.onQueued?.(false)
           if (frame.len !== current.left) {
@@ -608,6 +622,7 @@ export function pullTransfer(opts: PullOptions): Promise<void> {
           return
         }
         if (frame.type === 'done' && current) {
+          phase('verify')
           const item = current
           current = null
           // Node Writable 在 end/finish 路径上可能不再 emit drain；
@@ -622,10 +637,11 @@ export function pullTransfer(opts: PullOptions): Promise<void> {
             }
             // 重名避让（F-FILE-3 不覆盖）：根级避让在服务层，此处兜底逐文件避让
             try {
+              phase('write')
               renameSync(item.partPath, dedupeTargetPath(item.finalPath))
-            } catch {
+            } catch (error) {
               removePart(item.partPath)
-              fail('write-error')
+              fail('write-error', error)
               return
             }
             next()
@@ -647,9 +663,9 @@ export function pullTransfer(opts: PullOptions): Promise<void> {
     )
 
     socket.on('data', (chunk) => reader.feed(chunk))
-    socket.on('error', () => fail('socket-error'))
+    socket.on('error', error => fail('socket-error', error))
     socket.on('close', () => fail('closed'))
-    socket.on('connect', () => next())
+    socket.on('connect', () => { phase('connected'); next() })
   })
 }
 

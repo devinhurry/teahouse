@@ -1,5 +1,22 @@
 /** 本地英文文案；中文源模板即回退词典。 */
 const english: Record<string, string> = {
+  "诊断与反馈": "Diagnostics and feedback",
+  "遇到问题时，导出诊断包并附在问题反馈中。": "Export a diagnostic bundle and attach it to your bug report.",
+  "仅保存到本机，不会自动上传。包含环境信息与近期运行记录，不含聊天和文件内容。": "Saved locally, never uploaded automatically. Includes environment details and recent events, without chat or file contents.",
+  "附带真实网络地址": "Include real network addresses",
+  "将附上本次运行的真实 IP；发布附件前请确认可以公开。": "Includes IP addresses from this run. Check that they can be shared before posting the attachment.",
+  "默认隐藏 IP 和节点身份；排查网络问题时可勾选。": "IP addresses and node identities are hidden by default. Enable for network troubleshooting.",
+  "正在整理诊断包…": "Preparing diagnostics…",
+  "导出诊断包": "Export diagnostics",
+  "复制环境信息": "Copy environment info",
+  "诊断包已保存，可作为附件提交反馈。": "Diagnostic bundle saved. Attach it to your bug report.",
+  "正在导出，请稍候。": "An export is in progress. Please wait.",
+  "导出失败，请检查保存位置的权限和剩余空间后重试。": "Export failed. Check folder permissions and free disk space, then try again.",
+  "复制失败，请重试。": "Copy failed. Please try again.",
+  "已复制脱敏环境信息，可粘贴到问题描述中。": "Redacted environment info copied. Paste it into your report.",
+  "无法打开所在文件夹，请到保存位置查找诊断包。": "Could not open the folder. Find the bundle in your chosen save location.",
+  "反馈时请注明发生时间和操作步骤。传输问题建议双方分别导出。": "Include the time and steps in your report. For transfer issues, export a bundle from both peers.",
+
   "等待同意": "Pending",
   "待你同意": "Your consent",
   "连接中": "Connecting",

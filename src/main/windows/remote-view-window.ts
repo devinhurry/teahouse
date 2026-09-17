@@ -30,7 +30,7 @@ export class RemoteViewWindows {
   private queuedImage: ScreenImage | null = null
   private viewerReady = false
 
-  constructor(private readonly main: () => BrowserWindow | null, private readonly capabilitiesChanged: () => void) {
+  constructor(private readonly main: () => BrowserWindow | null, private readonly capabilitiesChanged: () => void, private readonly beforeCapture?: () => Promise<void>) {
     this.registerIpc()
   }
 
@@ -250,6 +250,8 @@ export class RemoteViewWindows {
         if (process.platform === 'darwin' && ['denied', 'restricted'].includes(systemPreferences.getMediaAccessStatus('screen'))) {
           this.service?.failPreparation(id as string, 'permission-denied'); return []
         }
+        await this.beforeCapture?.()
+        if (!this.owns(event, id, 'sharer') || !this.availability().share) return []
         const sources = await desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width: 240, height: 150 }, fetchWindowIcons: false })
         if (!this.owns(event, id, 'sharer')) return []
         this.sources = new Map(sources.slice(0, 32).map(source => [source.id, source]))

@@ -7,6 +7,10 @@ import type { PkGame, PkRefView } from './pk'
 import type { ScreenAvailability, ScreenState, ScreenSource, ScreenMode, ScreenImage, ScreenSample, ScreenRequestResult } from './remote-view'
 
 export const IpcChannels = {
+  diagnosticsExport: 'diagnostics:export',
+  diagnosticsCopy: 'diagnostics:copy',
+  diagnosticsReveal: 'diagnostics:reveal',
+  diagnosticsError: 'diagnostics:error',
   screenRequest: 'screen:request',
   screenSources: 'screen:sources',
   screenRespond: 'screen:respond',
@@ -172,6 +176,8 @@ export const IpcEvents = {
 /** 全局快捷键出厂默认（决议 #57）：设置页"恢复默认"与主进程默认值的唯一来源 */
 export const DEFAULT_CAPTURE_SHORTCUT = 'CommandOrControl+Alt+A'
 export const DEFAULT_SHOWHIDE_SHORTCUT = 'CommandOrControl+Alt+P'
+
+export type DiagnosticExportResult = { status: 'saved'; name: string } | { status: 'canceled' | 'busy' | 'failed' }
 
 export interface AppInfo {
   version: string
@@ -776,6 +782,10 @@ export interface PantryApi {
   onScreenState(listener: (state: ScreenState) => void): () => void
   onScreenSample(listener: (sample: ScreenSample) => void): () => void
   onScreenImage(listener: (image: ScreenImage) => void): () => void
+  exportDiagnostics(includeNetwork: boolean): Promise<DiagnosticExportResult>
+  copyDiagnosticEnvironment(): Promise<boolean>
+  revealDiagnostics(): Promise<boolean>
+  reportDiagnosticError(kind: 'error' | 'rejection' | 'vue' | 'bootstrap', name: string, line?: number, column?: number): void
   getAppInfo(): Promise<AppInfo>
   /** 用户点击聊天链接后交给系统浏览器；仅允许 http/https */
   openUrl(url: string): Promise<boolean>

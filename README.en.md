@@ -159,3 +159,20 @@ Standard renderer controls use [Naive UI](https://github.com/tusen-ai/naive-ui) 
 Copyright © 2026 skyjt.
 
 Starting with version 0.37.0, Teahouse source code and binary distributions are licensed under the [GNU General Public License v3.0 only](LICENSE), SPDX identifier `GPL-3.0-only`. MIT rights granted for version 0.36.8 and earlier remain valid. Third-party components and artwork retain the licenses listed in [Third-party notices](THIRD_PARTY_NOTICES.en.md).
+
+
+## Diagnostics and feedback (since v0.60.0)
+
+After a problem, open **Settings → About → Diagnostics and feedback → Export diagnostics**, save a local ZIP and attach it to your Issue manually. **Copy environment info** supplies a redacted summary. Include the time, steps and expected result; for file/image issues, export from both peers and label sender/receiver.
+
+Bundles include versions, OS/architecture/session details, known listener/permission status and recent events. Logs retain up to **seven days and 10 MiB**, excluding chat text, filenames/file contents, screen images, clipboard contents, credentials and raw error messages. Nodes and addresses are aliased by default. The unchecked **Include real network addresses** option adds addresses observed during this run only; confirm they can be shared before posting public attachments. Copied information always stays redacted. The app never uploads or contacts an external service.
+
+If the app cannot open, retrieve `.jsonl` files from `logs`, not the complete data directory, database or `identity-salt`:
+
+| Platform | Default log location |
+|---|---|
+| Windows | `%APPDATA%\茶话间\logs` |
+| Linux / UOS / Kylin | `${XDG_CONFIG_HOME:-~/.config}/茶话间/logs` |
+| macOS | `~/Library/Application Support/茶话间/logs` |
+
+Development instances use `PANTRY_USER_DATA/logs` when overridden. Restarted apps can export retained previous-run records. An unclean marker does not establish a crash cause; native crashes/power loss may leave no stack. If logging fails, bounded in-memory records last until exit and the summary reports persistence errors. Packaging runs only during export, with no per-frame logging or continuous performance monitoring.
