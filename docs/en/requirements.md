@@ -243,3 +243,9 @@ The user requested smoother viewing on the LAN and selected a **10 fps default t
 2026-09-16 proposal supplement: the subsequent discussion adds four frame-rate modes and automatic adaptation as review candidates, separately marked from confirmed #309. Default mode and implementation remain unapproved.
 
 - 2026-09-16, decision #310: v0.58.0 implements view-only remote assistance, independent windows, Auto (10/5/3 fps) and manual Economy/Standard/Smooth modes. Consent, one-frame backpressure, bounded deadlines, lock detection and forced window cleanup are covered by local tests. Physical target-platform permission and performance checks remain pending; this iteration is not a release.
+
+## Review refinement (#311, v0.58.1)
+
+Keep the existing view-only consent flow and four modes. Fix clipped source-selection actions, compact the viewing toolbar and persistent sharing window, reduce redundant image work and capture rate, and make Linux lock detection asynchronous and recoverable. Preserve Electron 22, Node 16, Chrome 108, single-frame backpressure, and separate physical-platform acceptance.
+
+- 2026-09-17, #311: review compatibility, low-end performance and UI; application **0.58.0 → 0.58.1**.

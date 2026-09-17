@@ -29,6 +29,7 @@ export class RemoteViewService extends EventEmitter {
   private tcpPort = 0
   private sender: ScreenSender | null = null
   private receiver: ScreenReceiver | null = null
+  private minimized = false
   private timer: ReturnType<typeof setTimeout> | undefined
   private readonly terminal = new Map<string, number>()
   private readonly incomingRate = new Map<string, number>()
@@ -104,6 +105,7 @@ export class RemoteViewService extends EventEmitter {
       onEnd: reason => this.stop(sessionId, reason)
     })
     this.receiver.setMode(current.mode)
+    this.receiver.setMinimized(this.minimized)
   }
 
   /** sourceId 的本地枚举归属在窗口层验证；本方法只接受当前邀请。 */
@@ -159,7 +161,7 @@ export class RemoteViewService extends EventEmitter {
     this.publish()
     return true
   }
-  setMinimized(value: boolean): void { this.receiver?.setMinimized(value) }
+  setMinimized(value: boolean): void { this.minimized = value; this.receiver?.setMinimized(value) }
 
   stop(sessionId: string, reason: ScreenEndReason = 'user'): void {
     const s = this.active()
@@ -175,6 +177,7 @@ export class RemoteViewService extends EventEmitter {
   checkPeer(): void { if (this.active() && !this.peerValid()) this.stopAll('disconnected') }
 
   private begin(peerId: string, peer: ScreenPeer, sessionId: string, role: ScreenState['role']): void {
+    this.minimized = false
     this.tcpPort = peer.tcpPort
     this.state = { revision: 0, sessionId, peerId, peerName: peer.name, peerIp: peer.ip, role,
       phase: role === 'viewer' ? 'requesting' : 'awaiting-consent', mode: 'auto', targetFps: 10 }

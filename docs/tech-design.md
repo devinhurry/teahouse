@@ -4,8 +4,8 @@
 
 | |                                                                                                                                                                                                              |
 |---|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| 状态 | v1.81；v0.58.0 已实现远程桌面查看（#310），目标机权限/性能待实测 |
-| 日期 | 2026-09-16 |
+| 状态 | v1.82；v0.58.1 协助兼容与性能复审（#311），目标机权限/性能待实测 |
+| 日期 | 2026-09-17 |
 | 关系 | 上游：[requirements.md](requirements.md)（功能）、[protocol.md](protocol.md)（协议）、[ui-design.md](ui-design.md)（界面）；硬约束：根 README「开发红线」（Electron 22.3.27 / Chrome 108 / Node 16.17 焊死） |
 
 ## 1. 选型决策总表
@@ -188,11 +188,11 @@ src/
 
 1. 请求到达仅展示身份与同意/拒绝；用户进入选屏后才枚举 `screen` 源与本地缩略图。禁止把源 ID、缩略图、屏幕名称发给远端。选屏和系统权限等待均受请求期限控制。
 2. 主进程将「当前会话 + 受限窗口 webContents + 本地选择的 source」绑定。使用 Electron 22 的 `setDisplayMediaRequestHandler` 配合 `getDisplayMedia({audio:false,video:...})`；仅向已获本次本地确认的窗口授予已选择的屏幕。独立内存 session 的 permission check 默认拒绝；实测 Electron 22 的显示媒体 permission request 为 `media` 且 `mediaTypes=[]`，仅为当前 preparing 角色、已选源、当前主 frame 放行一次，随后 display handler 消费选屏授权。摄像头/麦克风有非空类型并拒绝，无关窗口也拒绝。
-3. 一个会话只创建一个桌面流。在本地 renderer 中把视频采样到一个有界 Canvas，用 `toBlob('image/jpeg', quality)` 异步压缩，交由 main 校验再发送。**不循环调用 `desktopCapturer.getSources` 制作全屏缩略图，不在主进程逐帧编码，不把 MediaStream 通过 IPC 克隆。**
+3. 一个会话只创建一个桌面流，width/height 均设 1600 的最大约束，避免 4K 帧进入本地编码前继续维持高分辨率。在本地 renderer 中把视频采样到一个有界 Canvas，用 `toBlob('image/jpeg', quality)` 异步压缩，交由 main 校验再发送。**不循环调用 `desktopCapturer.getSources` 制作全屏缩略图，不在主进程逐帧编码，不把 MediaStream 通过 IPC 克隆。**
 4. 每次有效 next 才采样；前一编码/写出未结束时不启动下一次。迟到编码回调检查会话代次后丢弃。源分辨率/缩放变化时重新计算等比目标尺寸；原屏幕移除或 track ended 就结束，禁止自动切到另一块屏幕。
-5. viewer 主进程在分配、IPC 发送与解码前完成 protocol §8.3 校验；renderer 仅显示本地 `blob:` 图片，逐帧替换后释放旧 Blob URL/ImageBitmap。放大只能放大收到的像素，不能恢复压缩丢失的文字细节。
+5. viewer 主进程在分配、IPC 发送与解码前完成 protocol §8.3 校验；renderer 仅处理本地 JPEG 字节，用 createImageBitmap 解码并核对尺寸，通过 bitmaprenderer 交接位图所有权；该上下文不可用时回退 Canvas 2D，finally 显式 close 位图。只保留当前画布和一个在途位图，不产生逐帧 Blob URL/HTML 图片缓存。放大只能放大收到的像素，不能恢复压缩丢失的文字细节。
 
-保持 sandbox/contextIsolation、无 Node integration、导航拦截和严格 CSP。远端只提供有界 JPEG 字节，不作为页面、脚本或 URL 加载；当前 `img-src blob:` 可承载接收画面，禁止添加 `http:`、`https:` 或通配来源。`video.srcObject` 已在真实 Electron 合成源验证，无须扩大现有 CSP。
+保持 sandbox/contextIsolation、无 Node integration、导航拦截和严格 CSP。远端只提供有界 JPEG 字节，不作为页面、脚本或 URL 加载；接收画面使用本地 Blob 解码和 Canvas 显示，禁止添加 `http:`、`https:` 或通配来源。位图交接遵循 [transferFromImageBitmap 的所有权规则](https://developer.mozilla.org/en-US/docs/Web/API/ImageBitmapRenderingContext/transferFromImageBitmap)。`video.srcObject` 已在真实 Electron 合成源验证，无须扩大现有 CSP。
 
 官方依据：[Electron 22 桌面采集](https://github.com/electron/electron/blob/v22.3.27/docs/api/desktop-capturer.md)、[显示媒体请求处理](https://github.com/electron/electron/blob/v22.3.27/docs/api/session.md#sessetdisplaymediarequesthandlerhandler)。接口存在不等于目标桌面持续采集已通过。
 
@@ -215,7 +215,7 @@ src/
 - 查看端 main 从实际发出 next 到收到 `screen:consumed` 计整轮耗时，涵盖对端采样/编码、网络、本端校验/解码与 IPC；排除请求发出前主动等待的限速时间。使用实际处理余量，不采集 CPU 型号、不增加跨机 CPU 遥测。
 - 自动从 10 帧起步；降档规则为连续 3 帧耗时超过当前周期的 80%，按 10→5→3 降一级。降档后至少 10 秒禁止升档；耗时连续 10 秒低于下一更快档周期的 60% 时，仅试升一级。升档后若再次变慢，仍按同一降档规则处理；阈值需要目标机验证后回写。
 - 手动档只改变 next 的目标周期；每轮最多一个请求，始终受共享端 100ms 硬上限和字节预算约束。切模式不取消在途帧，下一次请求使用新周期并重置自动计数。慢到低于 3 帧时由背压自然进一步降速；超过既有期限仍结束会话。
-- 首版自动只改变采样/编码/发送节奏，不连续改变分辨率或 JPEG 质量，避免文字清晰度反复变化；底层桌面媒体流的采集负载仍须实测，降档不保证所有系统采集开销同比下降。
+- 自动保持图像尺寸与 JPEG 质量。#311 在本地采样入口按实际请求间隔同步约束媒体 track：连续 3 次间隔 ≥160ms / ≥280ms 后降到 5 / 3 帧，间隔恢复时立即提高，最多 10 帧；只在档位变化时 applyConstraints，失败则保留已可用采集，不重复申请权限。该有界启发式不增加线上字段或 CPU 遥测，底层是否减少原生抓屏开销仍须目标机实测。
 - 自动档验收：注入慢编码/慢解码/网络抖动，验证降档、恢复升档与 10 秒冷却，无档位频繁往返；手动模式不自动改档，切换不重连且图像尺寸/质量保持。阈值和防抖通过确定性测试；目标机吞吐仍须单独记录。
 
 后台生命周期不能依赖主窗是否隐藏或当前聊天。独立协助窗口按需关闭 background throttling，使用有上限的定时/请求调度；仅该会话存活时启用，保留 Win7/Linux 禁硬件加速策略。查看窗最小化仍按低帧率接收，恢复时看到最新画面，不为首版增加暂停/恢复协议。主动结束或关闭协助窗必须销毁采集宿主，避免 renderer 未响应时仍持有屏幕 track。
@@ -253,7 +253,7 @@ IPC 名称和准确 TS 契约在 `shared/ipc.ts`，会话投影类型在 `shared
 
 Electron 22 的 `powerMonitor` `lock-screen`/`unlock-screen` 事件仅标注 Windows/macOS；`getSystemIdleState` 的 locked 也只在支持的系统可用，不能把 idle/unknown 当作锁屏或已解锁。[版本对应文档](https://github.com/electron/electron/blob/v22.3.27/docs/api/power-monitor.md)
 
-Linux 首版使用现有系统 `gdbus` 读取并监听 DDE 的 `com.deepin.SessionManager.Locked`，或 UKUI 的 `org.ukui.ScreenSaver.GetLockState` / `lock` / `unlock`。启动先验证方法与 monitor 名称归属，邀请/接受前刷新状态；会话期间信号与 5 秒复核并行，命令超时、未知返回、服务消失或监控退出均终止并禁用能力。不安装系统工具，不用 idle 猜锁屏。缺少可用接口的桌面不广播远程查看能力；ARM64 Wayland 无论锁屏检测结果如何均不发屏。Win/mac 使用原生锁屏/休眠信号。实际 UOS/麒麟系统仍须目标机复核。
+Linux 首版使用现有系统 `gdbus` 读取并监听 DDE 的 `com.deepin.SessionManager.Locked`，或 UKUI 的 `org.ukui.ScreenSaver.GetLockState` / `lock` / `unlock`。同时适配新版 `org.deepin.dde.SessionManager1.Locked`（[接口](https://github.com/linuxdeepin/dde-session/blob/master/dbus/adaptor/org.deepin.dde.SessionManager1.xml)）。启动异步验证方法与 monitor 名称归属，不阻塞聊天；邀请/接受前刷新状态。会话期间信号与 5 秒复核并行，闲置时 60 秒复核，忽略无关属性信号；监控失效或桌面服务晚启动时每 60 秒重新检测，恢复只重新声明能力，不恢复旧会话，命令超时、未知返回、服务消失或监控退出均终止并禁用能力。不安装系统工具，不用 idle 猜锁屏。缺少可用接口的桌面不广播远程查看能力；ARM64 Wayland 无论锁屏检测结果如何均不发屏。Win/mac 使用原生锁屏/休眠信号。实际 UOS/麒麟系统仍须目标机复核。
 
 依据：[DDE 5.8.17 的 Locked 属性](https://github.com/linuxdeepin/startdde/blob/5.8.17/session.go)、[DDE 服务名](https://github.com/linuxdeepin/startdde/blob/5.8.17/session_stub.go)、[UKUI 锁屏接口](https://github.com/ukui/ukui-screensaver/blob/master/src/org.ukui.ScreenSaver.xml)。UKUI 的对象路径为 `/`，以[上游常量](https://github.com/ukui/ukui-screensaver/blob/master/src/types.h)为准；查询结果不能覆盖查询发出后收到的新锁屏信号。
 
@@ -707,3 +707,7 @@ Chromium 108 的 [GTK 事件转换](https://raw.githubusercontent.com/chromium/c
 - 2026-09-16 方案补充（待确认）：补充复用 next 节奏的自动/3/5/10 档位候选、耗时判断与防抖规则；不增加线上字段，默认模式和算法阈值仍待确认/验证。
 
 - 2026-09-16 v1.81 决议 #310：实现独立窗口采集/查看、屏幕会话编排、既有 TCP 监听器分流、单帧节流与自动档；一次性选屏、内存媒体 session、Linux DDE/UKUI 锁屏检测、第一帧就绪交接与主进程强制销毁均已接入。增加第五动态根预算和回环/Electron 自测，应用 **0.58.0**。
+
+- 2026-09-17 v1.82 决议 #311：原生位图交接与显式释放，约束媒体流尺寸/帧率；修复等待阶段最小化状态丢失、Linux 检测阻塞启动和检测失效后不可恢复，闲置复核降为 60 秒，补新版 DDE。协议不变，无新增依赖，应用 **0.58.1**。
+
+本轮本地验证：**121 个测试文件 / 790 测试**、Electron ABI 数据库自测、类型检查、构建、启动 smoke 与版本一致性通过。实际 Electron 软渲染合成测试验证原生位图和强制 Canvas 2D 回退；120 秒查看约 **9.30 帧/秒**。同机 30 秒对照中查看进程 CPU 指标 **2.053% → 0.757%**、工作集 **645 → 188 MiB**，这是本机样本，不外推目标平台。采集端动态 10/5/3/10 约束、高分辨率输出、约束失败回退及锁屏清理通过；Win7/UOS/麒麟/macOS 物理权限、DPI 与长期内存仍待目标机验证。

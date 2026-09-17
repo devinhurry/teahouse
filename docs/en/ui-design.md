@@ -4,7 +4,7 @@
 
 | Field | Value |
 |---|---|
-| Current design | v1.93; v0.58.0 implements independent screen-assistance windows and Auto/manual modes (#310) |
+| Current design | v1.94; v0.58.0 implements independent screen-assistance windows and Auto/manual modes (#310) |
 | Main-window model | Three columns with Chat, Contacts, and File Cabinet tabs |
 | Authority | [ui-design.md](../ui-design.md) is the canonical UI and interaction record |
 
@@ -316,3 +316,9 @@ Circular avatars, local line icons, file-type artwork, tray graphics, and brand 
 General settings and onboarding expose “语言 / Language” with “简体中文” and “English”. Changes apply to open windows without losing input. Localize Naive UI, accessibility labels, prompts, tray and notifications; check long English labels at minimum sizes. User content stays verbatim. Native operating-system dialogs and installer chrome follow their own language settings.
 
 - 2026-09-16, decision #310: v0.58.0 implements view-only remote assistance, independent windows, Auto (10/5/3 fps) and manual Economy/Standard/Smooth modes. Consent, one-frame backpressure, bounded deadlines, lock detection and forced window cleanup are covered by local tests. Physical target-platform permission and performance checks remain pending; this iteration is not a release.
+
+## Assistance UI review (#311, v0.58.1)
+
+Use the existing Teahouse tokens, native controls and window frame. Compact identity/rate/zoom controls leave more space for the image; narrow windows wrap controls without clipping Stop. Pending requests say Cancel. Source thumbnails scroll independently above a fixed Decline / Choose / Share action row, with visible keyboard focus and preparation feedback. The sharing window contracts to approximately 440×180 content pixels after consent, remains movable and always on top, and shows peer identity, IP, source and Stop. Long labels truncate with full tooltips. Place it on the main window display and keep resizing inside the current work area. Reuse IME-aware Escape handling including keyCode 229. No blur, continuous animation or new icon dependency.
+
+- 2026-09-17, v1.94, #311: compact assistance UI and fixed source actions; application **0.58.1**.

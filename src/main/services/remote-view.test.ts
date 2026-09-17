@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { randomUUID } from 'node:crypto'
 import { createConnection, type Socket, type Server, type AddressInfo } from 'node:net'
 import { RemoteViewService, type RemoteViewDeps, type ScreenPeer } from './remote-view'
+import { ScreenReceiver } from '../net/screen-stream'
 import { TransferServer } from '../net/transfer'
 import { encodeFrame } from '../net/frame'
 import { CAPS, SCREEN_REQUEST_TIMEOUT_MS, type ScreenPayload } from '../../shared/protocol'
@@ -159,4 +160,21 @@ describe('屏幕会话授权与终止', () => {
     expect(service.getState()?.phase).toBe('ended')
     expect(service.open({ remoteAddress: '127.0.0.1' } as Socket, open)).toBeNull()
   })
+})
+
+it('邀请等待期间最小化在收到同意后仍保持低帧率', async () => {
+  const { service, peer } = setup()
+  const server = new TransferServer(0, { resolve: () => null }, '127.0.0.1')
+  servers.push(server); await server.start()
+  peer.tcpPort = ((server as unknown as { server: Server }).server.address() as AddressInfo).port
+  const minimized = vi.spyOn(ScreenReceiver.prototype, 'setMinimized')
+  try {
+    service.request('peer')
+    service.setMinimized(true)
+    service.receive('peer', '127.0.0.1', { op: 'accept', sessionId: service.getState()!.sessionId, token: 'a'.repeat(32) })
+    expect(minimized).toHaveBeenLastCalledWith(true)
+    expect(service.getState()?.targetFps).toBe(3)
+    service.setMinimized(false)
+    expect(service.getState()?.targetFps).toBe(10)
+  } finally { minimized.mockRestore() }
 })

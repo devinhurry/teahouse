@@ -5,6 +5,7 @@ const english: Record<string, string> = {
   "当前桌面缺少可用的锁屏检测，暂不能使用屏幕协助": "Screen assistance is unavailable because lock detection is not supported on this desktop",
   "锁屏或休眠期间无法使用屏幕协助": "Screen assistance is unavailable while the computer is locked or sleeping",
   "当前系统暂不支持共享屏幕，可查看他人屏幕": "This system can view other screens but cannot share its own screen",
+  "画面大小": "Image size",
   "屏幕协助": "Screen assistance",
   "{0} 正在查看你的屏幕": "{0} is viewing your screen",
   "查看 {0} 的屏幕": "View {0}’s screen",

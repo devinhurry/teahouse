@@ -34,11 +34,10 @@ export class RemoteViewWindows {
     this.registerIpc()
   }
 
-  async start(): Promise<void> {
+  start(): void {
     if (process.platform === 'linux') {
       this.linux = new LinuxScreenLock(value => this.setLocked(value))
-      await this.linux.start()
-      this.locked = this.linux.locked
+      void this.linux.start()
     } else {
       this.refreshNativeLock()
       powerMonitor.on('lock-screen', () => this.setLocked(true))
@@ -97,8 +96,19 @@ export class RemoteViewWindows {
   }
 
   private update(state: ScreenState): void {
+    this.linux?.setActive(state.phase !== 'ended')
     if (state.phase === 'ended') this.destroyWindow()
     else if (!this.win) this.open(state)
+    else if (state.role === 'sharer' && state.phase === 'preparing') {
+      const win = this.win
+      const area = screen.getDisplayMatching(win.getBounds()).workArea
+      win.setMinimumSize(Math.min(360, area.width), Math.min(180, area.height))
+      win.setContentSize(Math.min(440, area.width), Math.min(180, area.height))
+      const bounds = win.getBounds()
+      win.setBounds({ width: Math.min(bounds.width, area.width), height: Math.min(bounds.height, area.height),
+        x: Math.max(area.x, Math.min(bounds.x, area.x + area.width - bounds.width)),
+        y: Math.max(area.y, Math.min(bounds.y, area.y + area.height - bounds.height)) })
+    }
     this.win?.webContents.send(IpcEvents.screenState, state)
     const main = this.main()
     if (main && !main.isDestroyed()) main.webContents.send(IpcEvents.screenState, state)
@@ -106,12 +116,15 @@ export class RemoteViewWindows {
 
   private open(state: ScreenState): void {
     const sharer = state.role === 'sharer'
-    const area = screen.getPrimaryDisplay().workAreaSize
+    const main = this.main()
+    const area = (main && !main.isDestroyed() ? screen.getDisplayMatching(main.getBounds()) : screen.getPrimaryDisplay()).workArea
+    const width = Math.min(sharer ? 560 : 1100, area.width)
+    const height = Math.min(sharer ? 480 : 760, area.height)
     // 独立内存 session 不继承其他窗口的媒体授权或磁盘缓存。
     const mediaSession = session.fromPartition('remote-view', { cache: false })
     mediaSession.setPermissionCheckHandler(() => false)
     const win = new BrowserWindow({
-      width: Math.min(sharer ? 560 : 1100, area.width), height: Math.min(sharer ? 420 : 760, area.height),
+      width, height, x: Math.round(area.x + (area.width - width) / 2), y: Math.round(area.y + (area.height - height) / 2),
       minWidth: Math.min(480, area.width), minHeight: Math.min(300, area.height),
       show: false, title: tr('屏幕协助'), alwaysOnTop: sharer, minimizable: !sharer,
       webPreferences: { preload: join(__dirname, '../preload/index.js'), contextIsolation: true,

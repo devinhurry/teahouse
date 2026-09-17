@@ -3075,7 +3075,7 @@ if (!gotLock) {
   })
 
   app.whenReady().then(async () => {
-    await remoteView.start()
+    remoteView.start()
     void imagePreview.prune()
     const updateCaps = canAdvertiseUpdateSource() ? [CAPS.updateSource] : []
     appState = loadAppState(app.getPath('userData'), app.getVersion(), tcpPort, udpPort, [
