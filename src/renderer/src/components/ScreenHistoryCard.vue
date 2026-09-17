@@ -23,7 +23,7 @@ function time(ts: number): string { return `${separatorTime(ts)}:${String(new Da
 </template>
 
 <style scoped>
-.screen-card { width: min(340px, 100%); margin: 10px auto; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius-panel); color: var(--text-1); background: var(--bg-window); font-size: var(--font-sm); }
+.screen-card { width: 340px; max-width: 100%; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--radius-panel); color: var(--text-1); background: var(--bg-window); font-size: var(--font-sm); }
 header { display: flex; align-items: center; gap: 8px; }
 header span { margin-left: auto; }
 p { margin: 6px 0 0; line-height: 1.6; }
