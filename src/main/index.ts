@@ -104,6 +104,7 @@ import {
   markScanRangeAutoScanned,
   saveAppSettings,
   saveProfile,
+  saveProfileCaps,
   type AppState
 } from './store/app-state'
 import { refreshTrayLanguage, setupTray, stopTrayUnreadFlash, updateTrayUnread } from './windows/tray'
@@ -308,9 +309,7 @@ if (!gotLock) {
   const remoteView = new RemoteViewWindows(() => mainWindow, () => {
     if (!appState || !remoteView.service) return
     const caps = [...appState.profile.caps.filter(cap => cap !== CAPS.remoteView && cap !== CAPS.remoteShare), ...remoteView.capabilities()]
-    if (caps.join(',') === appState.profile.caps.join(',')) return
-    appState.profile.caps = caps
-    appState.profile.profileRev += 1
+    if (!saveProfileCaps(appState, caps)) return
     discovery?.announceProfile()
   }, async () => {
     diagnostics.record('capture.state', { kind: 'screen', status: 'starting' })

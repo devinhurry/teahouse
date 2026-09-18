@@ -4,7 +4,7 @@
 
 | Field | Value |
 |---|---|
-| Current design | v1.84; v0.60.0 local diagnostics and feedback (#315) |
+| Current design | v1.85; v0.60.1 contact profile revisions and refresh (#316) |
 | Runtime baseline | Electron 22.3.27 / Node 16.17 / Chrome 108 |
 | Upstream | [Requirements](requirements.md), [Protocol](protocol.md), and [UI design](ui-design.md) |
 | Authority | [tech-design.md](../tech-design.md) is the canonical technical design record |
@@ -418,3 +418,7 @@ DiagnosticsService accepts explicit allowlisted event metadata, never arbitrary 
 - 2026-09-17: Decision #315, application **0.60.0**; diagnostics design recorded before implementation.
 
 Validation: 123 files / 801 tests, Electron ABI database checks, typecheck, build and isolated smoke all passed. `npm run test:diagnostics` exercises real Electron 22 IPC/Worker, redacted bundles, disk errors, abnormal restart and light/dark/English 125% UI. A local ~9 MiB fixture exported in 221 ms with a 17 ms maximum main-thread heartbeat interval; this is a local sample only. The synthetic-screen regression also passed. Win7/UOS/Kylin hardware acceptance remains pending. No new dependencies, migrations or wire changes.
+
+## Contact profile synchronization (#316)
+
+App-state advances the maximum of the stored and runtime profile revisions on profile or capability changes, persists it atomically and updates the shared runtime object. Capability changes persist only the revision and preserve onboarding state; identical capabilities do not write. PeerRegistry compares accepted full profiles by value, including same-revision changes, and emits the existing updated event for UI projection and contact persistence. Identical profiles, heartbeats and chat activity do not emit extra updates; lower revisions and invalid source changes remain rejected. Validate independent field saves after revision drift, capability changes across restart, duplicate/stale profiles and discovery loopback on 127.0.0.1 with empty broadcast targets. Application **0.60.1**, no wire/schema/dependency changes.

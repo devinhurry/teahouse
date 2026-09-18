@@ -1,4 +1,5 @@
 import { EventEmitter } from 'node:events'
+import { isDeepStrictEqual } from 'node:util'
 import type { Profile } from '../../shared/protocol'
 
 const zhCollator = new Intl.Collator('zh-Hans-CN')
@@ -68,7 +69,7 @@ export class PeerRegistry extends EventEmitter {
       cameOnline = true
     }
     if (profile && profile.profileRev >= existing.profile.profileRev) {
-      if (profile.profileRev > existing.profile.profileRev || profile.nick !== existing.profile.nick) {
+      if (!isDeepStrictEqual(profile, existing.profile)) {
         changed = true
       }
       existing.profile = profile

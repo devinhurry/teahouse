@@ -156,6 +156,22 @@ describe('discovery scanHosts', () => {
 })
 
 describe('discovery 回环集成', () => {
+  it.each([MSG_TYPES.entry, MSG_TYPES.alive, MSG_TYPES.profile])(
+    '%s 收到同版本公司变更后立即通知资料投影，无需改名或发消息', async (type) => {
+      const a = await makeStack('alice')
+      const b = await makeStack('bob')
+      b.discovery.probe('127.0.0.1', a.port)
+      await waitFor(() => a.registry.onlineCount() === 1 && b.registry.onlineCount() === 1)
+      let projected = { ...a.registry.get(b.profile.nodeId)!.profile }
+      a.registry.on('updated', () => { projected = { ...a.registry.get(b.profile.nodeId)!.profile } })
+
+      b.profile.company = '新公司'
+      b.udp.send(makeEnvelope<ProfilePayload>(type, b.profile.nodeId, { profile: b.profile }), '127.0.0.1', a.port)
+      await waitFor(() => projected.company === '新公司')
+      expect(projected).toMatchObject({ nick: 'bob', company: '新公司', profileRev: 1 })
+    }
+  )
+
   it('手动节点互相发现，graceful 退出立刻离线', async () => {
     const a = await makeStack('alice')
     const b = await makeStack('bob', [{ host: '127.0.0.1', port: a.port }])

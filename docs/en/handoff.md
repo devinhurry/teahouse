@@ -4,7 +4,9 @@
 
 This is the English current-state handoff for developers and coding agents. Read it together with the [Contributing guide](../../CONTRIBUTING.en.md) and any local automation policy included in your development checkout. The Chinese handoff keeps the complete chronological release notes; `git log` remains authoritative for current implementation history.
 
-Last updated: 2026-09-17. **v0.60.0 adds local diagnostic bundles and feedback (#315); hardware permission/performance acceptance remains pending.** The application remains pinned to Electron 22.3.27, Node 16.17 main/preload, Chrome 108 renderer, and LAN-only runtime behavior. The next new decision number is #316.
+Last updated: 2026-09-18. **v0.60.1 fixes contact profile synchronization (#316); this local increment is not published.** App-state shares one persisted monotonic revision between profile saves and runtime capability changes; PeerRegistry emits updates for changed full profiles at the same revision. Electron 22.3.27, Node 16.17, Chrome 108 and LAN-only behavior remain fixed. Next decision: #317.
+
+Validation: 124 files / 823 tests, Electron ABI database checks, typecheck, build, isolated smoke and version consistency passed. Real Electron 22 loopback verified independent company/department/team edits and clearing, contact grouping and an already-open profile card, same-revision changes, duplicate suppression, local remarks, contact persistence and actual settings input/blur saves. Startup capability revisions persist and subsequent company edits advance them. These are local results; Win7/UOS/Kylin hardware acceptance remains pending.
 
 Image Viewer now offers Previous/Next canvas buttons across the full local history of the opened conversation, skipping unavailable images and disabling endpoints. Switching keeps window bounds and resets image/OCR state. Wire protocol, database schema, and dependencies are unchanged.
 
