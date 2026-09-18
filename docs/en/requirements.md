@@ -266,3 +266,9 @@ Version 0.60.0 adds Settings → About → Diagnostics and feedback. Export a lo
 - 2026-09-17: Decision #315, application **0.60.0**; diagnostics design recorded before implementation.
 
 - 2026-09-18: Decision #316, application **0.60.1**: fix contact refresh after independent company, department, team or avatar changes. Profile saves and runtime capability changes share a monotonic persisted revision. Changed full profiles at the same revision also trigger the existing UI and database updates. Duplicate content stays quiet; older revisions and online source-address changes remain rejected. No new polling, wire fields, dependencies or schema changes.
+
+## Discovery and scan reliability (decision #317, v0.60.2)
+
+Unknown heartbeats trigger throttled full-profile handshakes. Optional `probeId` in entry/alive and capability `dp1` correlate fresh replies; directed replies bypass discovery jitter with a one-second per-peer limit. Active probes use a two-second deadline with one retry for dp1 peers, or twenty seconds with a retry at ten seconds for legacy peers. Equal profile revisions use sender timestamps to reject delayed data; a matching fresh reply resolves clock rollback/ties. Legacy peers without correlation retain best-effort timestamp ordering.
+
+Global, single-range and background scans share one queue: manual work takes priority while background progress is retained. Minimum address delays remain 8ms/62ms. Completion records the scan time and schedules the next round after twelve hours plus thirty-to-ninety-minute jitter; restart, deletion, eligibility and shutdown are checked. Range advertisements require an online peer and matching source IP/UDP port. Gossip sends at most one packet per target per 50ms and coalesces duplicate requests. Bridges distribute addresses; endpoints still require direct UDP/TCP reachability. No dependencies or database migrations are added.
