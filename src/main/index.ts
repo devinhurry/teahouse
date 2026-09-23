@@ -1743,16 +1743,20 @@ if (!gotLock) {
     if (!win || win.isMaximized() || win.isFullScreen()) return
     stopWindowDrag()
     const cursor = screen.getCursorScreenPoint()
-    const [winX, winY] = win.getPosition()
-    const offsetX = cursor.x - winX
-    const offsetY = cursor.y - winY
+    const bounds = win.getBounds()
+    const offsetX = cursor.x - bounds.x
+    const offsetY = cursor.y - bounds.y
+    let lastCursor = cursor
     dragTimer = setInterval(() => {
       if (win.isDestroyed()) {
         stopWindowDrag()
         return
       }
       const point = screen.getCursorScreenPoint()
-      win.setPosition(point.x - offsetX, point.y - offsetY)
+      if (point.x === lastCursor.x && point.y === lastCursor.y) return
+      lastCursor = point
+      // 固定拖拽开始时的尺寸，避免分数缩放下反复移窗累积取整误差。
+      win.setBounds({ x: point.x - offsetX, y: point.y - offsetY, width: bounds.width, height: bounds.height })
     }, 16)
   })
 
