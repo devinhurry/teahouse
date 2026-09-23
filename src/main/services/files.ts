@@ -52,6 +52,8 @@ interface OutgoingState {
   files: Map<string, OutgoingFile>
   totalSize: number
   bytesDone: number
+  resumedBytes: number
+  fileProgress: Map<string, { done: number; resumed: number }>
   accepted: boolean
   /** 普通文件本机截止时间；自动媒体/更新包为 0。 */
   expiresAt: number
@@ -83,6 +85,7 @@ interface IncomingState {
   msgId: string
   plans: IncomingFilePlan[]
   bytesDone: number
+  resumedBytes: number
   /** 普通文件本机截止时间；自动媒体/更新包为 0。 */
   expiresAt: number
   /** 发送端并发预算满、本传输在对端 FIFO 排队中（决议 #211，wait 帧驱动） */
@@ -178,10 +181,22 @@ export class FilesService extends EventEmitter {
       deps.bindAddress
     )
     this.server.on('diagnostic-error', error => deps.diagnostic?.('network.listen', { kind: 'tcp', port: deps.tcpPort, status: 'failed' }, error))
-    this.server.on('progress', (transferId: string, delta: number) => {
+    this.server.on('pull', (transferId: string, fileId: string, offset: number) => {
       const out = this.outgoing.get(transferId)
       if (!out) return
-      out.bytesDone += delta
+      const previous = out.fileProgress.get(fileId)
+      out.bytesDone += offset - (previous?.done ?? 0)
+      out.resumedBytes += offset - (previous?.resumed ?? 0)
+      out.fileProgress.set(fileId, { done: offset, resumed: offset })
+      this.emitTransfer(transferId, true)
+    })
+    this.server.on('progress', (transferId: string, delta: number, fileId: string) => {
+      const out = this.outgoing.get(transferId)
+      if (!out) return
+      const progress = out.fileProgress.get(fileId)!
+      const next = Math.min(out.files.get(fileId)!.size, progress.done + delta)
+      out.bytesDone += next - progress.done
+      progress.done = next
       this.emitTransfer(transferId, false)
     })
     this.server.on('served', (transferId: string) => {
@@ -296,6 +311,8 @@ export class FilesService extends EventEmitter {
       files: new Map(prepared.outFiles),
       totalSize: prepared.totalSize,
       bytesDone: 0,
+      resumedBytes: 0,
+      fileProgress: new Map(),
       accepted: false,
       expiresAt,
       acceptedAt: 0
@@ -406,6 +423,8 @@ export class FilesService extends EventEmitter {
         files: prepared.outFiles,
         totalSize: prepared.totalSize,
         bytesDone: 0,
+        resumedBytes: 0,
+        fileProgress: new Map(),
         accepted: false,
         expiresAt,
         acceptedAt: 0
@@ -484,6 +503,8 @@ export class FilesService extends EventEmitter {
       files: new Map(prepared.outFiles),
       totalSize: prepared.totalSize,
       bytesDone: 0,
+      resumedBytes: 0,
+      fileProgress: new Map(),
       accepted: false,
       expiresAt: 0,
       acceptedAt: 0
@@ -718,6 +739,7 @@ export class FilesService extends EventEmitter {
 
     this.deps.transferRepo.updateStatus(transferId, 'accepted')
     inc.bytesDone = 0
+    inc.resumedBytes = 0
     inc.queued = false
     inc.cancelRef = { canceled: false, socket: null }
     this.updateBlob(transferId, { savedPath })
@@ -747,8 +769,9 @@ export class FilesService extends EventEmitter {
       files: plans,
       saveDir: base,
       cancelRef: inc.cancelRef,
-      onProgress: (delta) => {
+      onProgress: (delta, resumed) => {
         inc.bytesDone += delta
+        if (resumed) inc.resumedBytes += delta
         this.emitTransfer(transferId, false)
       },
       onQueued: (queued) => {
@@ -854,6 +877,7 @@ export class FilesService extends EventEmitter {
       direction: row.direction === 'out' ? 'out' : 'in',
       status: row.status as TransferView['status'],
       bytesDone: live ?? row.bytes_done,
+      resumedBytes: this.outgoing.get(transferId)?.resumedBytes ?? inc?.resumedBytes ?? 0,
       totalSize: row.total,
       fileCount: fileRefCount,
       name: blob.name,
@@ -1173,6 +1197,7 @@ export class FilesService extends EventEmitter {
         msgId,
         plans,
         bytesDone: 0,
+        resumedBytes: 0,
         expiresAt,
         queued: false,
         cancelRef: { canceled: false, socket: null }
@@ -1229,6 +1254,7 @@ export class FilesService extends EventEmitter {
       msgId,
       plans,
       bytesDone: 0,
+      resumedBytes: 0,
       expiresAt: 0,
       queued: false,
       cancelRef: { canceled: false, socket: null }
@@ -1269,6 +1295,7 @@ export class FilesService extends EventEmitter {
       msgId,
       plans,
       bytesDone: 0,
+      resumedBytes: 0,
       expiresAt: 0,
       queued: false,
       cancelRef: { canceled: false, socket: null }
@@ -1312,6 +1339,7 @@ export class FilesService extends EventEmitter {
       msgId,
       plans,
       bytesDone: 0,
+      resumedBytes: 0,
       expiresAt: 0,
       queued: false,
       cancelRef: { canceled: false, socket: null }
@@ -1420,6 +1448,8 @@ export class FilesService extends EventEmitter {
           files,
           totalSize: row.total,
           bytesDone: row.bytes_done,
+          resumedBytes: 0,
+          fileProgress: new Map(),
           accepted: row.status === 'accepted',
           expiresAt: row.expires_at,
           acceptedAt: row.status === 'accepted' ? now : 0
@@ -1457,6 +1487,7 @@ export class FilesService extends EventEmitter {
         msgId: row.msg_id,
         plans,
         bytesDone: row.bytes_done,
+        resumedBytes: 0,
         expiresAt: row.expires_at,
         queued: false,
         cancelRef: { canceled: false, socket: null }

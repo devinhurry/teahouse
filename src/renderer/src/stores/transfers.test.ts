@@ -5,7 +5,7 @@ import { useTransfersStore } from './transfers'
 
 const transfer: TransferView = {
   transferId: 't1', msgId: 'm1', convId: 'group:a', peerId: 'peer', direction: 'in',
-  status: 'offering', bytesDone: 0, totalSize: 100, fileCount: 1, name: '验证.txt',
+  status: 'offering', bytesDone: 0, resumedBytes: 0, totalSize: 100, fileCount: 1, name: '验证.txt',
   expiresAt: 0, savedPath: '', direct: false
 }
 

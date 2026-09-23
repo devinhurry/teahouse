@@ -295,6 +295,7 @@ export class TransferServer extends EventEmitter {
         }
         trackTransfer(pull.transferId)
         busy = true
+        this.emit('pull', pull.transferId, pull.fileId, offset)
         const wantsWait = this.lookup.supportsWait?.(pull.from) === true
         const job = this.enqueueStreamStart(socket, () => {
           stopWaitHeartbeat()
@@ -317,7 +318,7 @@ export class TransferServer extends EventEmitter {
             chunk: Buffer | string
           ): void => {
             const data = asBuffer(chunk)
-            this.emit('progress', pull.transferId, data.length)
+            this.emit('progress', pull.transferId, data.length, pull.fileId)
             if (!socket.write(data) && !waitingDrain) {
               waitingDrain = true
               stream.pause()
@@ -438,7 +439,7 @@ export interface PullOptions {
   transferId: string
   files: IncomingFilePlan[]
   saveDir: string
-  onProgress: (bytesDelta: number) => void
+  onProgress: (bytesDelta: number, resumed: boolean) => void
   /** 由服务侧设置以支持取消：destroy 当前 socket */
   cancelRef: { canceled: boolean; socket: Socket | null }
   /** 排队状态回调（决议 #211）：收到 wait 帧且尚未开始供流时 true，pull-ok 到达后 false */
@@ -572,7 +573,7 @@ export function pullTransfer(opts: PullOptions): Promise<void> {
       } catch {
         offset = 0
       }
-      if (offset > 0) opts.onProgress(offset)
+      if (offset > 0) opts.onProgress(offset, true)
       const hash = createHash('sha256')
       const startPull = (): void => {
         stopPreparing()
@@ -676,7 +677,7 @@ export function pullTransfer(opts: PullOptions): Promise<void> {
           socket.pause()
           current.stream.once('drain', () => resumeSocket())
         }
-        opts.onProgress(chunk.length)
+        opts.onProgress(chunk.length, false)
       },
       (reason) => fail(reason)
     )

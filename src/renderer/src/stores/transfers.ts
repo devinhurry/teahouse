@@ -25,13 +25,14 @@ export const useTransfersStore = defineStore('transfers', {
       window.pantry.onTransferUpdated((view) => {
         const prev = this.samples[view.transferId]
         const now = Date.now()
-        if (view.status === 'accepted' && prev && now > prev.ts) {
+        const transferred = view.bytesDone - view.resumedBytes
+        if (view.status === 'accepted' && prev && now > prev.ts && transferred >= prev.bytes) {
           this.speed[view.transferId] =
-            ((view.bytesDone - prev.bytes) / (now - prev.ts)) * 1000
-        } else if (view.status !== 'accepted') {
+            ((transferred - prev.bytes) / (now - prev.ts)) * 1000
+        } else {
           this.speed[view.transferId] = 0
         }
-        this.samples[view.transferId] = { bytes: view.bytesDone, ts: now }
+        this.samples[view.transferId] = { bytes: transferred, ts: now }
         this.byId[view.transferId] = view
         this.pruneCompleted(view.transferId)
       })

@@ -333,6 +333,8 @@ export interface TransferView {
   direction: 'in' | 'out'
   status: 'offering' | 'accepted' | 'done' | 'declined' | 'canceled' | 'failed' | 'expired'
   bytesDone: number
+  /** 已在接收端存在的字节；进度包含它，速率不包含它。 */
+  resumedBytes: number
   totalSize: number
   fileCount: number
   name: string
