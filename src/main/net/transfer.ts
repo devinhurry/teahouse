@@ -480,6 +480,14 @@ export function pullTransfer(opts: PullOptions): Promise<void> {
     let settled = false
     /** 写盘背压 pause 后，文件切换时 end() 可能吞掉 drain，须显式 resume */
     let socketPaused = false
+    let preparingStream: ReturnType<typeof createReadStream> | null = null
+    let prepareHeartbeat: ReturnType<typeof setInterval> | null = null
+    const stopPreparing = (): void => {
+      if (prepareHeartbeat) clearInterval(prepareHeartbeat)
+      prepareHeartbeat = null
+      preparingStream?.destroy()
+      preparingStream = null
+    }
     const removePart = (path: string): void => {
       try {
         rmSync(path, { force: true })
@@ -496,6 +504,7 @@ export function pullTransfer(opts: PullOptions): Promise<void> {
     const fail = (reason: string, error?: unknown): void => {
       if (settled) return
       settled = true
+      stopPreparing()
       resumeSocket()
       if (current) {
         current.stream.destroy()
@@ -516,6 +525,7 @@ export function pullTransfer(opts: PullOptions): Promise<void> {
     const succeed = (): void => {
       if (settled) return
       settled = true
+      stopPreparing()
       resumeSocket()
       socket.end()
       phase('complete')
@@ -565,6 +575,8 @@ export function pullTransfer(opts: PullOptions): Promise<void> {
       if (offset > 0) opts.onProgress(offset)
       const hash = createHash('sha256')
       const startPull = (): void => {
+        stopPreparing()
+        if (settled || socket.destroyed) return
         phase('pull')
         current = {
           plan,
@@ -590,9 +602,16 @@ export function pullTransfer(opts: PullOptions): Promise<void> {
         startPull()
         return
       }
+      // 大 .part 的预哈希可能超过发送端 15 秒握手期限；等待期间持续保活。
+      socket.write(encodeFrame({ type: 'wait' }))
+      prepareHeartbeat = setInterval(() => {
+        if (!settled && !socket.destroyed) socket.write(encodeFrame({ type: 'wait' }))
+      }, PULL_WAIT_HEARTBEAT)
       const existing = createReadStream(partPath, { start: 0, end: offset - 1 })
+      preparingStream = existing
       existing.on('data', (chunk) => hash.update(chunk))
       existing.on('error', error => {
+        if (settled) return
         removePart(partPath)
         fail('part-read-error', error)
       })
